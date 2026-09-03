@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kapitel 1 Lektion 1</title>
+</head>
+<body>
+  <script src="http://koda.nu/simple.js">
+
+var colorplayer = {
+     
+     red:1,
+     green:1,
+     blue:1,
+     
+}
+
+var player = {
+     x:50,
+     y:200,
+     size:40,
+     color: mixColor(colorplayer.red, colorplayer.green, colorplayer.blue),
+     speed: random(1,100),
+}
+
+function update(){
+clearScreen()
+
+circle(player.x, player.y, player.size, mixColor(colorplayer.red, colorplayer.green, colorplayer.blue))
+
+
+
+if (colorplayer.red < 256) 
+colorplayer.red += 1
+else
+colorplayer.red = 1
+
+
+if (colorplayer.green < 256)
+colorplayer.green += 1
+else 
+colorplayer.green = 1
+
+if (colorplayer.blue < 256)
+colorplayer.blue += 1
+else 
+colorplayer.blue = 1
+
+
+
+if{colorplayer.red = 256} {
+    if(){
+
+    }
+}
+}
+
+  </script>
+</body>
+</html>
+
+

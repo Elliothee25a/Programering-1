@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kapitel 1 Lektion 2</title>
+</head>
+<body>
+  <script src="http://koda.nu/simple.js">
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣐⠒⠒⠦⢤⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠑⠦⣀⠀⠀⠙⠢⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠳⣄⠀⠀⠈⢢⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⠀⠀⠀⠀⠀⠀⠀⠀⢸⠀⠀⠀⠀⢷⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⢀⣠⠤⠔⠀⠀⠀⠉⠁⠀⠉⠉⠳⣄⠀⠀⠀⠀⠀⢸⠀⠀⠀⠀⣾⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⢀⡤⠖⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠒⠢⣄⠀⠈⢣⡀⠀⠀⠀⢸⠀⠀⠀⣰⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠊⠁⢀⣀⠤⠔⠒⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠱⣄⠀⣱⡄⠀⠲⢏⡀⠀⢠⣇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠐⠊⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡀⠈⢉⣁⣀⣀⡠⣴⣻⣦⠘⣯⣱⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣰⣿⢻⣾⠽⠓⢯⣹⡇⠚⢻⣿⡇⢻⠹⣿⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢰⣧⡿⣿⡟⣶⣦⣄⣽⣻⡄⠘⣿⣿⣼⣶⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⠛⣇⣿⣷⡌⠳⠿⠿⠿⣇⠀⢹⣏⣿⠿⣅⡿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠹⣿⠉⠉⠀⠀⠀⣸⡟⣠⢏⠝⡿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡇⠀⠀⠀⢈⣼⣷⡟⢀⣼⡇⠀⢀⣷⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣷⡀⠀⠀⠀⡾⡸⠡⢻⣿⠁⠀⢸⣹⣤⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣻⣦⣀⣼⡿⠃⠒⢸⡟⢀⠀⠈⡏⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡜⠋⠉⠉⡓⠀⠀⢸⠃⢸⠀⢷⣷⣿⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠀⣀⡾⠀⠀⠀⠀⠈⢣⠀⣼⠀⣸⠀⠸⣿⢸⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠐⣾⠋⠁⠀⠀⠀⠀⠀⠀⠀⢰⡇⠀⣿⢰⠀⣿⡾⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣼⣿⠀⠀⠀⠀⠀⠀⠀⠀⢠⡏⠀⢰⣿⢸⠀⢻⠁⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣧⡄⠀⠀⠀⠀⠀⢀⡾⢀⠀⣿⢻⢸⠀⢸⢻⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⣿⡏⠀⠀⠀⠀⠀⠀⣼⠃⡼⢀⡏⢸⢸⡇⢸⣸⣆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣸⠁⠀⠀⣠⣿⣦⣴⡇⢀⡇⢸⣿⣸⣿⡇⣿⣿⣿⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣰⠃⠀⠀⢀⣿⣿⣿⣏⡄⢸⣷⣾⣿⣿⣧⢳⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣴⠁⠀⠀⠀⣼⣿⣿⣿⣿⣇⣿⡟⢿⣿⠸⣏⠿⠟⣻⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢰⠃⠀⠀⠀⢰⢯⣿⣿⣿⣿⣿⣿⣷⣿⣿⣦⢿⣄⣤⡿⠟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡞⠀⠀⠀⣴⣯⣼⣿⡟⢻⣟⣿⣿⣿⡿⠿⠋⠛⢯⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣸⠁⠀⠀⢠⣟⠉⡽⠙⢿⣥⡄⢲⣻⡟⢠⠀⠀⠀⠀⣷⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡏⠀⠀⢠⣯⣼⣷⠃⠀⠀⠙⢷⣾⣯⣿⣌⠑⠢⠀⣠⣿⢿⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣾⠀⠀⢠⣿⠖⠛⠁⠀⠀⠀⠀⠀⠙⣿⠿⣿⣿⣻⡿⠟⣿⠈⣧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⡼⠉⢢⡀⣿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⢿⣾⣿⡼⢁⣾⡟⠀⢸⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠀⠀⠀⠀⠀⠀⠀⠀⣰⡯⠚⠉⠢⣭⣼⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⣿⣿⣇⣼⡿⠀⠀⠘⡛⣷⣤⣤⣤⣤⣤⣤⣤⣤⡀⠀
+//⠀⠀⠀⠀⠀⠀⢀⡾⠁⣀⣀⣤⣴⣋⠀⠹⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣿⣿⣿⠟⠀⠀⢀⡞⠘⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡆
+//⠀⢀⣴⣾⣿⣷⣿⣶⣿⣿⣿⣉⣿⡍⠛⠲⣝⣦⣄⡀⠀⠀⠀⠀⠀⠀⢀⠞⣽⣿⠏⠀⢀⣴⡿⠋⠑⠈⠉⠉⠉⠛⠛⠿⠿⠿⠟⠀
+//⣰⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠉⠙⠿⢭⣗⣒⣒⣒⣚⣥⠞⠙⠼⠿⠿⠿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//⠙⠙⢻⠿⠿⠿⠿⠛⠋⠉⠉⠉⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⠉⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+
+ updatesPerSecond =144 // Basiclly fps
+
+ 
+
+var color = {
+    red: 255,
+    green:226,
+    blue:198,
+ }
+var black   = {
+    red:25,
+    green:22,
+    blue:21,
+    speed:7,
+}
+
+if (random(1,2) == 2) {
+   color.red = black.red
+   color.green = black.green
+   color.blue = black.blue
+   player.speed = black.speed
+ }
+
+
+ var player = {
+    x: 100, // Spawn Kordinater
+    y: 100, // Spawn Kordinater
+    s: 20, //Storlek
+    f: mixColor(color.red,color.green,color.blue), //Färg
+    speed: 5,
+ }
+
+
+ 
+ var zombie = {
+    x: random(totalWidth), //Zombiens spawn inom skärmnen max bred randomly
+    y: random(totalHeight), //Zombiens spawn inom skärmnen max Höjd randomly
+    speed: random(0.5,1), // Zombins hastighet
+    s: random(15,30), //Storleken av zombin
+    f: mixColor(100, random(100,256), random(100))
+ }
+
+ var boom = {
+  x: mouse.x,
+  y: mouse.y,
+ }
+ function update()
+{
+
+clearScreen();
+
+
+
+circle(player.x, player.y, player.s, player.f); //Spelar avataren
+
+if (keyboard.d) 
+player.x += player.speed; 
+//
+if (keyboard.a) 
+player.x -= player.speed; 
+//
+if (keyboard.w) 
+player.y -= player.speed; 
+//
+if (keyboard.s) 
+player.y += player.speed; 
+//
+if (keyboard.a && keyboard.w) 
+player.x += player.speed/4, player.y += player.speed/4
+//
+if (keyboard.a && keyboard.s) 
+player.x += player.speed/4, player.y -= player.speed/4
+//
+if (keyboard.d && keyboard.w) 
+player.x -= player.speed/4, player.y += player.speed/4
+//
+if (keyboard.d && keyboard.s) 
+player.x -= player.speed/4, player.y -= player.speed/4
+// Spelare kontroller
+
+circle(zombie.x, zombie.y, zombie.s, zombie.f); //zombie karaktären
+
+if (zombie.x < player.x)
+zombie.x += zombie.speed;
+
+if (zombie.x > player.x)
+zombie.x -= zombie.speed;
+
+if (zombie.y < player.y)
+zombie.y += zombie.speed;
+
+if (zombie.y > player.y)
+zombie.y -= zombie.speed;
+
+circle(mouse.x, mouse.y, 10, "black"); 
+if (mouse.left)
+circle(mouse.x, mouse.y, 10, "red"); 
+
+
+
+if (distance(player,zombie) < 20)
+{  
+    alert("Game Over!")
+    stopUpdate();
+}
+}
+
+  </script>
+</body>
+</html>

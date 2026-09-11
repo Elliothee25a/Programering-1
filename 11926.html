@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kapitel 1 Lektion 1</title>
+</head>
+<body>
+  <script src="http://koda.nu/simple.js">
+
+updatesPerSecond =144
+
+var x = 1
+
+var player = { 
+  x: 50, 
+  y: 50, 
+  size: 40, 
+  color: "blue",
+  speedX: random(1,5), 
+  speedY: random(1,5), 
+  direction: 2, 
+  directionY: 1,
+  bounces: 0  };
+
+function update() {
+    clearScreen();
+    //picture(x, 0, "https://static1.e621.net/data/sample/e7/8f/e78f1d8dc344fd7aa14740308c02d5b4.webp", totalWidth , totalHeight);
+
+  text(100, 100, 30, player.bounces,"red")
+
+  circle(player.x, player.y, player.size, player.color);
+  player.x = player.x + player.speedX * player.direction;
+  player.y = player.y + player.speedY * player.directionY;
+
+    if (player.x + player.size > totalWidth) {
+        player.direction = -1;
+        console.log("höger")
+        player.bounces ++
+        player.color = mixColor(random(256),random(256),random(256))
+    }
+    if (player.x - player.size < 0) {
+        player.direction = 1;
+        console.log("vänster")
+        player.bounces ++
+        player.color = mixColor(random(256),random(256),random(256))
+    }
+    if (player.y - player.size < 0) {
+        player.directionY = 1;
+        console.log("uoppe")
+        player.bounces ++
+        player.color = mixColor(random(256),random(256),random(256))
+    }
+     if (player.y + player.size > totalHeight) {
+        player.directionY = -1;
+        console.log("nere")
+        player.bounces ++
+        player.color = mixColor(random(256),random(256),random(256))
+    }
+    // Studsa mot nederkant – saknas!
+}
+
+  </script>
+</body>
+</html>

@@ -1,0 +1,462 @@
+```html
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minecraft Lite</title>
+</head>
+
+<body>
+
+<script src="http://koda.nu/simple.js">
+
+totalWidth = 800;
+totalHeight = 600;
+
+
+// =========================
+// SPELARE
+// =========================
+
+var player = {
+    x: 400,
+    y: 300,
+    width: 30,
+    height: 30,
+    speed: 5,
+    velocityY: 0,
+    onGround: false
+};
+
+var gravity = 0.6;
+var groundY = 450;
+
+
+// =========================
+// BLOCK
+// =========================
+
+var blockSize = 40;
+
+var blocks = [];
+
+
+// Skapa marken
+for (var x = 0; x < totalWidth; x += blockSize) {
+
+    blocks.push({
+        x: x,
+        y: groundY,
+        type: "grass"
+    });
+
+    blocks.push({
+        x: x,
+        y: groundY + blockSize,
+        type: "dirt"
+    });
+
+    blocks.push({
+        x: x,
+        y: groundY + blockSize * 2,
+        type: "dirt"
+    });
+}
+
+
+// Extra sten
+blocks.push({
+    x: 200,
+    y: 410,
+    type: "stone"
+});
+
+blocks.push({
+    x: 240,
+    y: 410,
+    type: "stone"
+});
+
+
+// =========================
+// INVENTORY
+// =========================
+
+var inventory = [
+    "grass",
+    "dirt",
+    "stone",
+    "wood"
+];
+
+var selectedBlock = 0;
+
+
+// =========================
+// MUS
+// =========================
+
+var mouseX = 0;
+var mouseY = 0;
+
+
+// =========================
+// BLOCKFÄRG
+// =========================
+
+function blockColor(type) {
+
+    if (type == "grass") {
+        return "green";
+    }
+
+    if (type == "dirt") {
+        return "brown";
+    }
+
+    if (type == "stone") {
+        return "gray";
+    }
+
+    if (type == "wood") {
+        return "saddlebrown";
+    }
+
+    return "white";
+}
+
+
+// =========================
+// HITTA BLOCK
+// =========================
+
+function getBlock(x, y) {
+
+    for (var i = 0; i < blocks.length; i++) {
+
+        if (
+            x >= blocks[i].x &&
+            x < blocks[i].x + blockSize &&
+            y >= blocks[i].y &&
+            y < blocks[i].y + blockSize
+        ) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+
+// =========================
+// BLOCKPLACERING
+// =========================
+
+function placeBlock() {
+
+    var gridX = Math.floor(mouseX / blockSize) * blockSize;
+    var gridY = Math.floor(mouseY / blockSize) * blockSize;
+
+
+    // Kolla om det redan finns ett block
+    if (getBlock(gridX + 1, gridY + 1) != -1) {
+        return;
+    }
+
+
+    // Lägg blocket
+    blocks.push({
+        x: gridX,
+        y: gridY,
+        type: inventory[selectedBlock]
+    });
+}
+
+
+// =========================
+// TA BORT BLOCK
+// =========================
+
+function removeBlock() {
+
+    var index = getBlock(mouseX, mouseY);
+
+    if (index != -1) {
+
+        // Ta bort block
+        blocks.splice(index, 1);
+    }
+}
+
+
+// =========================
+// UPDATE
+// =========================
+
+function update() {
+
+    clearScreen();
+
+
+    // =========================
+    // BAKGRUND
+    // =========================
+
+    rectangle(
+        0,
+        0,
+        totalWidth,
+        totalHeight,
+        "skyblue"
+    );
+
+
+    // Sol
+    circle(
+        700,
+        80,
+        50,
+        "yellow"
+    );
+
+
+    // =========================
+    // RÖRELSE
+    // =========================
+
+    if (keyboard.a) {
+        player.x -= player.speed;
+    }
+
+    if (keyboard.d) {
+        player.x += player.speed;
+    }
+
+
+    // =========================
+    // HOPP
+    // =========================
+
+    if (keyboard.space && player.onGround) {
+
+        player.velocityY = -12;
+
+        player.onGround = false;
+    }
+
+
+    // Gravitation
+    player.velocityY += gravity;
+
+    player.y += player.velocityY;
+
+
+    // =========================
+    // MARK
+    // =========================
+
+    if (player.y + player.height >= groundY) {
+
+        player.y = groundY - player.height;
+
+        player.velocityY = 0;
+
+        player.onGround = true;
+    }
+
+
+    // =========================
+    // RITA BLOCK
+    // =========================
+
+    for (var i = 0; i < blocks.length; i++) {
+
+        rectangle(
+            blocks[i].x,
+            blocks[i].y,
+            blockSize,
+            blockSize,
+            blockColor(blocks[i].type)
+        );
+
+
+        // Block-kant
+        rectangle(
+            blocks[i].x,
+            blocks[i].y,
+            blockSize,
+            2,
+            "black"
+        );
+    }
+
+
+    // =========================
+    // SPELARE
+    // =========================
+
+    rectangle(
+        player.x,
+        player.y,
+        player.width,
+        player.height,
+        "blue"
+    );
+
+
+    // Ögon
+    circle(
+        player.x + 8,
+        player.y + 9,
+        3,
+        "black"
+    );
+
+    circle(
+        player.x + 22,
+        player.y + 9,
+        3,
+        "black"
+    );
+
+
+    // =========================
+    // INVENTORY / HOTBAR
+    // =========================
+
+    var inventoryWidth = 4 * 55;
+    var inventoryX = totalWidth / 2 - inventoryWidth / 2;
+    var inventoryY = totalHeight - 70;
+
+
+    for (var i = 0; i < inventory.length; i++) {
+
+        // Ruta
+        rectangle(
+            inventoryX + i * 55,
+            inventoryY,
+            50,
+            50,
+            "darkgray"
+        );
+
+
+        // Markerad ruta
+        if (i == selectedBlock) {
+
+            rectangle(
+                inventoryX + i * 55,
+                inventoryY,
+                50,
+                50,
+                "yellow"
+            );
+        }
+
+
+        // Blocket i inventory
+        rectangle(
+            inventoryX + i * 55 + 8,
+            inventoryY + 8,
+            34,
+            34,
+            blockColor(inventory[i])
+        );
+
+
+        // Nummer
+        text(
+            "" + (i + 1),
+            inventoryX + i * 55 + 4,
+            inventoryY + 15,
+            14,
+            "white"
+        );
+    }
+
+
+    // =========================
+    // INSTRUKTIONER
+    // =========================
+
+    text(
+        "A / D = gå",
+        20,
+        520,
+        18,
+        "white"
+    );
+
+    text(
+        "SPACE = hoppa",
+        20,
+        545,
+        18,
+        "white"
+    );
+
+    text(
+        "1-4 = välj block",
+        20,
+        570,
+        18,
+        "white"
+    );
+
+    text(
+        "Klick = placera | Högerklick = ta bort",
+        300,
+        570,
+        18,
+        "white"
+    );
+}
+
+
+// =========================
+// TANGENTBORD
+// =========================
+
+function keydown(key) {
+
+    if (key == "1") {
+        selectedBlock = 0;
+    }
+
+    if (key == "2") {
+        selectedBlock = 1;
+    }
+
+    if (key == "3") {
+        selectedBlock = 2;
+    }
+
+    if (key == "4") {
+        selectedBlock = 3;
+    }
+}
+
+
+// =========================
+// MUSKLICK
+// =========================
+
+// Vänsterklick
+function mouseup(button) {
+
+    if (button == 1) {
+        placeBlock();
+    }
+
+    // Högerklick
+    if (button == 3) {
+        removeBlock();
+    }
+}
+
+</script>
+
+</body>
+</html>
+```

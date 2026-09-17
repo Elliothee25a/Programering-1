@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kapitel 1 Lektion 1</title>
+</head>
+<body>
+  <script src="http://koda.nu/simple.js">
+
+ updatesPerSecond =144 // Basiclly fps
+
+//denna dålig
+
+var player = { 
+    x: 400, 
+    y: 300, 
+    size: 20, 
+    color: "blue", 
+    speed: 4 
+}
+
+
+  var speed = random(0.5,1)
+
+  function Test(x, y, s) {
+    this.x = x
+    this.y = y
+    this.s = s
+
+    this.update = function() {
+         rectangle(this.x-30 ,this.y +30, 60, 60, "gray");
+        circle(this.x, this.y, 30, "green");
+
+        this.y = this.y + this.s
+    }
+
+
+  }
+ 
+function drawZombie(x,y){
+
+   
+
+ rectangle(x-30 ,y +30, 60, 60, "gray");
+ circle(x, y, 30, "green");
+
+
+
+//  if (x < player.x) {
+// x += speed;
+// } 
+// if (x > player.x) {
+// x -= speed;
+// }
+// if (y < player.y){
+// y += speed;
+// }
+// if (y > player.y){
+// y -= speed;
+// }
+} 
+
+  
+function update() {
+    clearScreen();
+    // circle(player.x, player.y, player.size, player.color);
+
+    for(let i = 0; i < 10; i++) {
+        // console.log(i)
+        drawZombie(100 * i,200, 4)
+    }
+
+
+
+
+
+
+
+
+
+
+
+if (keyboard.d) 
+player.x += player.speed; 
+//
+if (keyboard.a) 
+player.x -= player.speed; 
+//
+if (keyboard.w) 
+player.y -= player.speed; 
+//
+if (keyboard.s) 
+player.y += player.speed; 
+//
+if (keyboard.a && keyboard.w) 
+player.x += player.speed/4, player.y += player.speed/4
+//
+if (keyboard.a && keyboard.s) 
+player.x += player.speed/4, player.y -= player.speed/4
+//
+if (keyboard.d && keyboard.w) 
+player.x -= player.speed/4, player.y += player.speed/4
+//
+if (keyboard.d && keyboard.s) 
+player.x -= player.speed/4, player.y -= player.speed/4
+// Spelare kontroller
+}
+
+  </script>
+</body>
+</html>

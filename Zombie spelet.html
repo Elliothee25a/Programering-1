@@ -63,7 +63,7 @@ if (random(1,2) == 2) {
    color.red = black.red
    color.green = black.green
    color.blue = black.blue
-   player.speed = black.speed
+   //player.speed = black.speed
  }
 
 
@@ -83,6 +83,8 @@ if (random(1,2) == 2) {
     speed: random(0.5,1), // Zombins hastighet
     s: random(15,30), //Storleken av zombin
     f: mixColor(100, random(100,256), random(100))
+
+    
  }
 
  var boom = {
@@ -125,6 +127,7 @@ player.x -= player.speed/4, player.y -= player.speed/4
 
 circle(zombie.x, zombie.y, zombie.s, zombie.f); //zombie karaktären
 
+
 if (zombie.x < player.x)
 zombie.x += zombie.speed;
 
@@ -137,17 +140,15 @@ zombie.y += zombie.speed;
 if (zombie.y > player.y)
 zombie.y -= zombie.speed;
 
-circle(mouse.x, mouse.y, 10, "black"); 
-if (mouse.left)
-circle(mouse.x, mouse.y, 10, "red"); 
 
 
 
-if (distance(player,zombie) < 20)
+if (distance(player,zombie,) < 20)
 {  
     alert("Game Over!")
     stopUpdate();
 }
+
 }
 
   </script>

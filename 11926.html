@@ -17,15 +17,15 @@ var player = {
   y: 50, 
   size: 40, 
   color: "blue",
-  speedX: random(1,5), 
-  speedY: random(1,5), 
+  speedX: random(1,10), 
+  speedY: random(1,10), 
   direction: 2, 
   directionY: 1,
   bounces: 0  };
 
 function update() {
     clearScreen();
-    //picture(x, 0, "https://static1.e621.net/data/sample/e7/8f/e78f1d8dc344fd7aa14740308c02d5b4.webp", totalWidth , totalHeight);
+ 
 
   text(100, 100, 30, player.bounces,"red")
 

@@ -21,7 +21,7 @@ var player = {
 }
 
 
-  var speed = random(0.5,1)
+//   var speed = random(0.5,1)
 
   function Test(x, y, s) {
     this.x = x
@@ -29,10 +29,10 @@ var player = {
     this.s = s
 
     this.update = function() {
-         rectangle(this.x-30 ,this.y +30, 60, 60, "gray");
+        rectangle(this.x-30 ,this.y +30, 60, 60, "gray");
         circle(this.x, this.y, 30, "green");
 
-        this.y = this.y + this.s
+        this.y += this.s
     }
 
 
@@ -61,15 +61,33 @@ function drawZombie(x,y){
 // }
 } 
 
+var array = []
+
+for(let i = 0; i < 100; i++) {
+    array.push(new Test(100 * i, 100, random(1, 5)))
+}
+
+
+// var a = new Test(100, 200, 3)
+// var b = new Test(200, 200, 2)
+
   
 function update() {
     clearScreen();
     // circle(player.x, player.y, player.size, player.color);
 
-    for(let i = 0; i < 10; i++) {
-        // console.log(i)
-        drawZombie(100 * i,200, 4)
+    // for(let i = 0; i < 10; i++) {
+    //     // console.log(i)
+    //     drawZombie(100 * i,200, 4)
+    // }
+
+    // a.update()
+    // b.update()
+
+    for(let i = 0; i < array.length; i++) {
+        array[i].update()
     }
+
 
 
 

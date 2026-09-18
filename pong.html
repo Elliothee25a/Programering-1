@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>snoppong</title>
+</head>
+<body>
+  <script src="http://koda.nu/simple.js">
+
+updatesPerSecond = 144
+
+var leftBlock = {
+    x: 10,
+    y:totalHeight /2 -100,
+    speed: 5,
+ }
+
+var rightBlock = {
+    x: totalWidth - 30,
+    y:  totalHeight /2 -100,
+    speed: 5,
+ }
+
+var ball = {
+    x: 50, 
+    y: 200, 
+    size: 40, 
+    color: "blue", 
+    speedX: random(1,10), 
+    speedY: random(1,10), 
+    directionX: 1,
+    directionY: 1,
+}
+
+function update() {
+
+    
+    clearScreen()
+    hideMouse()
+
+//bollen
+circle(ball.x, ball.y, ball.size, ball.color);
+
+//movement till bollen
+ball.x = ball.x + ball.speedX * ball.directionX;
+ball.y = ball.y + ball.speedY * ball.directionY;
+
+//höger
+    if (ball.x + ball.size > rightBlock.x) {
+        ball.directionX = -1;
+        console.log("höger")
+    }
+
+//vänster
+    if (ball.x - ball.size < 0) {
+        ball.directionX= 1;
+    }
+
+//uppe
+    if (ball.y - ball.size < 0) {
+        ball.directionY = 1;
+    }
+//nere
+
+     if (ball.y + ball.size > totalHeight) {
+        ball.directionY = -1;
+     }
+
+
+//leftblock
+rectangle(leftBlock.x, leftBlock.y, 20, 200, "black");
+
+//Up control
+if (keyboard.w) 
+leftBlock.y -= leftBlock.speed; 
+//Down Control
+if (keyboard.s) 
+leftBlock.y += leftBlock.speed; 
+
+//rightblock
+rectangle(rightBlock.x, rightBlock.y, 20, 200, "black");
+
+//upcointrop
+if (keyboard.up) 
+rightBlock.y -= rightBlock.speed; 
+//Down control
+if (keyboard.down) 
+rightBlock.y += rightBlock.speed; 
+
+
+
+}
+
+
+  </script>
+</body>
+</html>

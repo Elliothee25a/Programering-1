@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pong</title>
+</head>
+
+<body>
+
+<script src="http://koda.nu/simple.js">
+
+updatesPerSecond = 144;
+
+
+// VÄNSTER PADDLE
+var leftBlock = {
+    x: 10,
+    y: totalHeight / 2 - 100,
+    speed: 5,
+};
+
+
+// HÖGER PADDLE
+var rightBlock = {
+    x: totalWidth - 30,
+    y: totalHeight / 2 - 100,
+    speed: 5,
+};
+
+
+// BOLLEN
+var ball = {
+    x: totalWidth / 2,
+    y: totalHeight / 2,
+    size: 20,
+    color: "blue",
+    speedX: 5,
+    speedY: 5,
+    directionX: 1,
+    directionY: 1,
+};
+
+
+function update() {
+
+    clearScreen();
+    hideMouse();
+
+
+    // =====================
+    // BOLLENS RÖRELSE
+    // =====================
+
+    ball.x = ball.x + ball.speedX * ball.directionX;
+    ball.y = ball.y + ball.speedY * ball.directionY;
+
+
+    // =====================
+    // STUDS MOT TAKET
+    // =====================
+
+    if (ball.y - ball.size <= 0) {
+        ball.directionY = 1;
+    }
+
+
+    // =====================
+    // STUDS MOT BOTTEN
+    // =====================
+
+    if (ball.y + ball.size >= totalHeight) {
+        ball.directionY = -1;
+    }
+
+
+    // =====================
+    // VÄNSTER PADDLE
+    // =====================
+
+    if (
+        ball.x - ball.size <= leftBlock.x + 20 &&
+        ball.y >= leftBlock.y &&
+        ball.y <= leftBlock.y + 200 &&
+        ball.directionX == -1
+    ) {
+        ball.directionX = 1;
+    }
+
+
+    // =====================
+    // HÖGER PADDLE
+    // =====================
+
+    if (
+        ball.x + ball.size >= rightBlock.x &&
+        ball.y >= rightBlock.y &&
+        ball.y <= rightBlock.y + 200 &&
+        ball.directionX == 1
+    ) {
+        ball.directionX = -1;
+    }
+
+
+    // =====================
+    // VÄNSTER PADDLE
+    // =====================
+
+    rectangle(
+        leftBlock.x,
+        leftBlock.y,
+        20,
+        200,
+        "black"
+    );
+
+
+    // VÄNSTER PADDLE - UPP
+    if (keyboard.w) {
+        leftBlock.y -= leftBlock.speed;
+    }
+
+
+    // VÄNSTER PADDLE - NER
+    if (keyboard.s) {
+        leftBlock.y += leftBlock.speed;
+    }
+
+
+    // =====================
+    // HÖGER PADDLE
+    // =====================
+
+    rectangle(
+        rightBlock.x,
+        rightBlock.y,
+        20,
+        200,
+        "black"
+    );
+
+
+    // HÖGER PADDLE - UPP
+    if (keyboard.up) {
+        rightBlock.y -= rightBlock.speed;
+    }
+
+
+    // HÖGER PADDLE - NER
+    if (keyboard.down) {
+        rightBlock.y += rightBlock.speed;
+    }
+
+
+    // =====================
+    // BOLLEN RITAS
+    // =====================
+
+    circle(
+        ball.x,
+        ball.y,
+        ball.size,
+        ball.color
+    );
+
+}
+
+</script>
+
+</body>
+</html>

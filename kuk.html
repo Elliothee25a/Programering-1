@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kapitel 1 Lektion 1</title>
+</head>
+<body>
+  <script src="http://koda.nu/simple.js">
+
+
+
+  </script>
+
+  <div id="circle" style="width:100px; height:100px; border-radius:50%; background-color:green;"></div>
+
+  <script>
+    let clicks = 0;
+
+    document.getElementById("circle").addEventListener("click", function() {
+      clicks++;
+      console.log(clicks);
+    });
+  </script>
+</body>
+</html>

@@ -75,14 +75,14 @@ ball.y = ball.y + ball.speedY * ball.directionY;
 
   //höger
     if (ball.x  > totalWidth) {
-       ball.directionX = -1;
+       ball.directionX = -1 //- ball.bounce;
         console.log("vänster")
         leftBlock.score ++
     }
  //vänster
 
      if (ball.x  < 0) {
-        ball.directionX= 1;
+        ball.directionX= 1 //- ball.bounce;
         rightBlock.score ++
         console.log("höger")
      }
@@ -90,13 +90,18 @@ ball.y = ball.y + ball.speedY * ball.directionY;
 //Boll - Uppe
 
     if (ball.y - ball.size < 0) {
-        ball.directionY = 1;
+        ball.bounce +=0.01
+        ball.directionY = 1; //+ ball.bounce;
+        console.log(ball.bounce)
+
     }
 
 //Boll - Nere
 
      if (ball.y + ball.size > totalHeight) {
-        ball.directionY = -1;
+        ball.bounce +=0.01
+        ball.directionY = -1 //- ball.bounce;
+        console.log(ball.bounce)
      }
 
 //===================================================
@@ -107,7 +112,9 @@ ball.y = ball.y + ball.speedY * ball.directionY;
         ball.y <= leftBlock.y + 200 &&
         ball.directionX == -1
     ) {
-        ball.directionX = 1;
+        ball.directionX = 1 //+ ball.bounce;
+        console.log("vänsterpadel")
+        console.log(ball.bounce)
     }
 
 //leftblock
@@ -134,8 +141,9 @@ leftBlock.y += leftBlock.speed;
         ball.y <= rightBlock.y + 200 &&
         ball.directionX == 1
     ) {
-        ball.directionX = -1;
-        
+        ball.directionX = -1 //- ball.bounce;
+        console.log("högerpadel")
+        console.log(ball.bounce)
     }
 
 //rightblock

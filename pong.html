@@ -8,29 +8,32 @@
 <body>
   <script src="http://koda.nu/simple.js">
 
-updatesPerSecond = 144
+updatesPerSecond = 144  
 
 var leftBlock = {
     x: 10,
     y:totalHeight /2 -100,
-    speed: 5,
+    speed: 7,
+    score: 0
  }
 
 var rightBlock = {
     x: totalWidth - 30,
     y:  totalHeight /2 -100,
-    speed: 5,
+    speed: 7,
+    score: 0
  }
 
 var ball = {
-    x: 50, 
-    y: 200, 
-    size: 40, 
-    color: "blue", 
-    speedX: random(1,10), 
-    speedY: random(1,10), 
-    directionX: 1,
-    directionY: 1,
+    x: totalWidth /2, 
+    y: totalHeight /2, 
+    size: 20, 
+    color: "Black", 
+    speedX: random(4,6), 
+    speedY: random(4,6), 
+    directionX: random(-1,1),
+    directionY: random(-1,1),
+    bounce: 0
 }
 
 function update() {
@@ -39,57 +42,136 @@ function update() {
     clearScreen()
     hideMouse()
 
+
+text(0, 30, 30, leftBlock.score, "red")
+text(totalWidth -70, 30, 30, rightBlock.score, "red")
+
+
+
+
+
+
+ if (ball.directionY == 0 ) {
+ ball.directionY = random(-1,1)
+console.log("y") }
+
+ if (ball.directionX == 0 ) {
+ ball.directionX = random(-1,1)
+console.log("x") }
+
+//===================================================
+
 //bollen
-circle(ball.x, ball.y, ball.size, ball.color);
+circle(
+    ball.x, 
+    ball.y, 
+    ball.size, 
+    ball.color);
 
 //movement till bollen
 ball.x = ball.x + ball.speedX * ball.directionX;
 ball.y = ball.y + ball.speedY * ball.directionY;
 
-//höger
-    if (ball.x + ball.size > rightBlock.x) {
-        ball.directionX = -1;
-        console.log("höger")
-    }
 
-//vänster
-    if (ball.x - ball.size < 0) {
+  //höger
+    if (ball.x  > totalWidth) {
+       ball.directionX = -1;
+        console.log("vänster")
+        leftBlock.score ++
+    }
+ //vänster
+
+     if (ball.x  < 0) {
         ball.directionX= 1;
-    }
+        rightBlock.score ++
+        console.log("höger")
+     }
 
-//uppe
+//Boll - Uppe
+
     if (ball.y - ball.size < 0) {
         ball.directionY = 1;
     }
-//nere
+
+//Boll - Nere
 
      if (ball.y + ball.size > totalHeight) {
         ball.directionY = -1;
      }
 
+//===================================================
+
+    if (
+        ball.x - ball.size <= leftBlock.x + 20 &&
+        ball.y >= leftBlock.y &&
+        ball.y <= leftBlock.y + 200 &&
+        ball.directionX == -1
+    ) {
+        ball.directionX = 1;
+    }
 
 //leftblock
-rectangle(leftBlock.x, leftBlock.y, 20, 200, "black");
+rectangle(
+    leftBlock.x,
+    leftBlock.y, 
+    20, 
+    200, 
+    "black");
 
 //Up control
 if (keyboard.w) 
 leftBlock.y -= leftBlock.speed; 
+
 //Down Control
 if (keyboard.s) 
 leftBlock.y += leftBlock.speed; 
 
-//rightblock
-rectangle(rightBlock.x, rightBlock.y, 20, 200, "black");
+//===================================================
 
-//upcointrop
+   if (
+        ball.x + ball.size >= rightBlock.x &&
+        ball.y >= rightBlock.y &&
+        ball.y <= rightBlock.y + 200 &&
+        ball.directionX == 1
+    ) {
+        ball.directionX = -1;
+        
+    }
+
+//rightblock
+rectangle(
+    rightBlock.x,
+    rightBlock.y, 
+    20, 
+    200, 
+    "black");
+
+//up control
 if (keyboard.up) 
 rightBlock.y -= rightBlock.speed; 
+
 //Down control
 if (keyboard.down) 
 rightBlock.y += rightBlock.speed; 
 
 
 
+//===================================================
+
+
+
+//höger
+    if (ball.x > totalWidth) {
+        //  alert("Game Over!")
+        //  stopUpdate();  
+     }
+
+// //vänster
+
+     if (ball.x < 0) {
+        //  alert("Game Over!")
+        //  stopUpdate();
+     }
 }
 
 

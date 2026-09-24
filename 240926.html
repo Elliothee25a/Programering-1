@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kapitel 1 Lektion 1</title>
+</head>
+<body>
+  <script src="http://koda.nu/simple.js">
+
+var player = { x: 100, y: 300, size: 20, color: "blue", speed: 4 };
+
+var zombie1 = { x: 300, y: 220 };
+var zombie2 = { x: 500, y: 400 };
+var zombie3 = { x: 700, y: 260 };
+
+// STEG 1a: skriv funktionen drawZombie här
+
+function update() {
+  clearScreen();
+  text(20, 30, 24, "Zombiespelet", "black");
+
+  // STEG 1b: rita de tre zombierna här
+
+  circle(player.x, player.y, player.size, player.color);
+
+  if (keyboard.d) {
+    player.x = player.x + player.speed;
+  }
+  if (keyboard.a) {
+    player.x = player.x - player.speed;
+  }
+  if (keyboard.w) {
+    player.y = player.y - player.speed;
+  }
+  if (keyboard.s) {
+    player.y = player.y + player.speed;
+  }
+
+  // STEG 2: träffkollen kommer här
+}
+
+  </script>
+</body>
+</html>

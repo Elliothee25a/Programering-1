@@ -52,20 +52,7 @@ var color = {
     green:226,
     blue:198,
  }
-var black   = {
-    red:25,
-    green:22,
-    blue:21,
-    speed:7,
-}
-
-if (random(1,2) == 2) {
-   color.red = black.red
-   color.green = black.green
-   color.blue = black.blue
-   //player.speed = black.speed
- }
-
+ 
 
  var player = {
     x: 100, // Spawn Kordinater
@@ -84,6 +71,29 @@ if (random(1,2) == 2) {
     s: random(15,30), //Storleken av zombin
     f: mixColor(100, random(100,256), random(100))
  }
+
+var zombies = [];
+
+
+zombies.push (
+{
+    x: random(totalWidth), //Zombiens spawn inom skärmnen max bred randomly
+    y: random(totalHeight), //Zombiens spawn inom skärmnen max Höjd randomly
+    speed: random(0.5,1), // Zombins hastighet
+    s: random(15,30), //Storleken av zombin
+    f: mixColor(100, random(100,256), random(100))
+ }
+);
+zombies.push (
+{
+    x: random(totalWidth), //Zombiens spawn inom skärmnen max bred randomly
+    y: random(totalHeight), //Zombiens spawn inom skärmnen max Höjd randomly
+    speed: random(0.5,1), // Zombins hastighet
+    s: random(15,30), //Storleken av zombin
+    f: mixColor(100, random(100,256), random(100))
+ }
+);
+
 
  var boom = {
   x: mouse.x,

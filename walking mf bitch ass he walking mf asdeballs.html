@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>walking mf bitch ass he walking mf asdeballs.html</title>
+</head>
+<body>
+  <script src="http://koda.nu/simple.js">
+
+updatesPerSecond = 144  
+
+var player = {
+    x: 400,
+    y: 300,
+    width: 30,
+    height: 30,
+    speedRight: 5,
+    speedLeft: 5,
+    velocityY: 0,
+    onGround: false
+    moving: false
+}
+
+
+var acceleration = 1.1
+var friction = 0.2
+var gravity = 0.15;
+var groundY = totalHeight/1.15;
+
+function update () {
+
+clearScreen();
+
+text(20,60,40,"player.x " + player.x,"red")
+text(20,200,40,"player.y " + player.y,"red")
+
+
+
+
+
+
+    // RÖRELSE
+  
+
+    if (keyboard.a) {
+      player.moving = true;
+      player.x = player.x - player.speedLeft * acceleration
+      } else {
+      player.speedLeft - player.speedLeft * friction
+      }
+
+
+        // player.x -= player.speed;
+    
+
+    if (keyboard.d) {
+      player.moving = true;
+      player.x = player.x + player.speedRight * acceleration
+
+
+
+
+        // player.x += player.speed;
+    }
+
+
+    // HOPPa
+
+
+    if (keyboard.space && player.onGround) {
+
+        player.velocityY = -8;
+
+        player.onGround = false;
+        player.moving = true;
+    }
+
+
+    // Gravitation
+    player.velocityY += gravity;
+
+    player.y += player.velocityY;
+
+
+
+    // marken man gåt på ja
+   
+
+    if (player.y + player.height >= groundY) {
+
+        player.y = groundY - player.height;
+
+        player.velocityY = 0;
+
+        player.onGround = true;
+    }
+
+rectangle(0, groundY, totalWidth, totalHeight-groundY, "black");
+
+
+//player uess
+
+    rectangle(
+        player.x,
+        player.y,
+        player.width,
+        player.height,
+        "blue"
+    );
+
+
+    // Ögon
+    circle(
+        player.x + 8,
+        player.y + 9,
+        3,
+        "black"
+    );
+
+    circle(
+        player.x + 22,
+        player.y + 9,
+        3,
+        "black"
+    );
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+}
+
+
+
+  </script>
+</body>
+</html>

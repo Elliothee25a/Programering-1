@@ -23,8 +23,20 @@ var player = {
     size: 15, 
     color: "Black", 
     speed: 5,
-
 }
+
+
+// var mouseMovement = {
+// mouse.x  = mouse.x ,
+// mouse.y = mouse.y
+
+
+
+
+// }
+
+
+
 //===================================================
 function update() {
 
@@ -96,6 +108,7 @@ player.x -= player.speed/4, player.y -= player.speed/4
         player.y = totalHeight 
         scene.y = scene.y +1
         
+        
 
     }
 
@@ -107,10 +120,28 @@ player.x -= player.speed/4, player.y -= player.speed/4
         
      }
 
-//scenes
+//scenes x
 if (scene.x == 0 && scene.y == 0)
 triangle(500, 40, 620, 180, 430, 180, "green");
 
+if (scene.x == 1 && scene.y == 1)
+triangle(500, 40, 620, 180, 430, 180, "red");
+
+if (scene.x == 2 && scene.y == 1)
+triangle(500, 40, 620, 180, 430, 180, "blue");
+
+//scenes y 
+if (scene.x == 0 && scene.y == 1)
+triangle(500, 40, 620, 180, 430, 1800, "yellow");
+
+if (scene.x == 0 && scene.y == 2)
+triangle(500, 40, 620, 180, 430, 1800, "black");
+
+if (scene.x == 1 && scene.y == 2)
+triangle(500, 40, 620, 180, 430, 1800, "blue");
+
+if (scene.x == 1 && scene.y == 3)
+triangle(500, 40, 620, 180, 430, 1800, "red");
 
     }
   </script>

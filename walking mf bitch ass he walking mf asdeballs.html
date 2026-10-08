@@ -18,11 +18,31 @@ var player = {
     speedRight: 5,
     speedLeft: 5,
     velocityY: 0,
-    onGround: false
+    onGround: false,
     moving: false
+}
+var kub = {
+x: 400,
+    y: 300,
+    width: 30,
+    height: 30,
+    speedRight: 5,
+    speedLeft: 5,
+    velocityY: 0,
+    onGround: false,
+    moving: false
+
 }
 
 
+
+
+
+var scene = {
+    x:0,
+    y:0,
+
+}
 var acceleration = 1.1
 var friction = 0.2
 var gravity = 0.15;
@@ -35,8 +55,43 @@ clearScreen();
 text(20,60,40,"player.x " + player.x,"red")
 text(20,200,40,"player.y " + player.y,"red")
 
+text(290,60,40,"scene.x " + scene.x,"red")
+text(290,200,40,"scene.y " + scene.y,"red")
 
+//scene
+ //scene höger
+    if (player.x  > totalWidth) {
+       player.x = 0;
+        console.log("vänster")
+        scene.x = scene.x +1
+        
+    }
+ //scene vänster
 
+     if (player.x  < 0) {
+        
+        player.x = totalWidth -1;
+        console.log("höger")
+        scene.x = scene.x -1
+     }
+
+//scene uppe
+
+    if (player.y < 0) {
+        player.y = totalHeight 
+        scene.y = scene.y +1
+        
+        
+
+    }
+
+//scene nere
+
+     if (player.y > totalHeight) {
+        player.y = 1;
+        scene.y = scene.y -1
+        
+     }
 
 
 
@@ -46,8 +101,11 @@ text(20,200,40,"player.y " + player.y,"red")
     if (keyboard.a) {
       player.moving = true;
       player.x = player.x - player.speedLeft * acceleration
+
+
       } else {
       player.speedLeft - player.speedLeft * friction
+      player.moving = false;
       }
 
 
@@ -86,7 +144,7 @@ text(20,200,40,"player.y " + player.y,"red")
 
     // marken man gåt på ja
    
-
+//player
     if (player.y + player.height >= groundY) {
 
         player.y = groundY - player.height;
@@ -95,7 +153,16 @@ text(20,200,40,"player.y " + player.y,"red")
 
         player.onGround = true;
     }
+    //kuben
+  if (kub.y + kub.height >= groundY) {
 
+        kub.y = groundY - kub.height;
+
+        kub.velocityY = 0;
+
+        
+  }
+        //marken
 rectangle(0, groundY, totalWidth, totalHeight-groundY, "black");
 
 
@@ -109,6 +176,13 @@ rectangle(0, groundY, totalWidth, totalHeight-groundY, "black");
         "blue"
     );
 
+//kub
+rectangle(
+        kub.x,
+        kub.y,
+        kub.width,
+        kub.height,
+        "blue"
 
     // Ögon
     circle(

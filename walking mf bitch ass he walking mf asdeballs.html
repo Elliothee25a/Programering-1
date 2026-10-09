@@ -13,16 +13,16 @@ updatesPerSecond = 144
 var player = {
     x: 400,
     y: 300,
-    width: 30,
-    height: 30,
-    speedRight: 5,
-    speedLeft: 5,
+    width: 40,
+    height: 40,
+    speedRight: 3,
+    speedLeft: 3,
     velocityY: 0,
     onGround: false,
     moving: false
 }
 var kub = {
-x: 400,
+    x: 500,
     y: 300,
     width: 30,
     height: 30,
@@ -140,7 +140,9 @@ text(290,200,40,"scene.y " + scene.y,"red")
 
     player.y += player.velocityY;
 
+    kub.velocityY += gravity;
 
+    kub.y += kub.velocityY;
 
     // marken man gåt på ja
    
@@ -159,10 +161,14 @@ text(290,200,40,"scene.y " + scene.y,"red")
         kub.y = groundY - kub.height;
 
         kub.velocityY = 0;
+        kub.onGround = true;
+}
+    if (distance(player.x,kub.x,) < 20){
+console.log(nhusgdy)
 
-        
-  }
-        //marken
+    }
+  
+    //marken
 rectangle(0, groundY, totalWidth, totalHeight-groundY, "black");
 
 
@@ -182,7 +188,8 @@ rectangle(
         kub.y,
         kub.width,
         kub.height,
-        "blue"
+        "red"
+    );
 
     // Ögon
     circle(
@@ -202,6 +209,18 @@ rectangle(
 
 
 
+
+// 1. Rita de lodräta (vertikala) linjerna
+for (var x = 0; x <= totalWidth; x += 40)
+{
+  line(x, 0, x, totalHeight, 1, "gray");
+}
+
+// 2. Rita de vågräta (horisontella) linjerna
+for (var y = 0; y <= totalHeight; y += 40)
+{
+  line(0, y, totalWidth, y, 1, "gray");
+}
 
 
 

@@ -28,14 +28,11 @@ var kub = {
     height: 30,
     speedRight: 5,
     speedLeft: 5,
-    velocityY: 0,
+    velocityY: 1,
     onGround: false,
     moving: false
 
 }
-
-
-
 
 
 var scene = {
@@ -43,8 +40,7 @@ var scene = {
     y:0,
 
 }
-var acceleration = 1.1
-var friction = 0.2
+
 var gravity = 0.15;
 var groundY = totalHeight/1.15;
 
@@ -100,11 +96,11 @@ text(290,200,40,"scene.y " + scene.y,"red")
 
     if (keyboard.a) {
       player.moving = true;
-      player.x = player.x - player.speedLeft * acceleration
+      player.x = player.x - player.speedLeft
 
 
       } else {
-      player.speedLeft - player.speedLeft * friction
+      player.speedLeft - player.speedLeft 
       player.moving = false;
       }
 
@@ -114,7 +110,7 @@ text(290,200,40,"scene.y " + scene.y,"red")
 
     if (keyboard.d) {
       player.moving = true;
-      player.x = player.x + player.speedRight * acceleration
+      player.x = player.x + player.speedRight
 
 
 
@@ -210,20 +206,21 @@ rectangle(
 
 
 
-// 1. Rita de lodräta (vertikala) linjerna
-for (var x = 0; x <= totalWidth; x += 40)
-{
-  line(x, 0, x, totalHeight, 1, "gray");
+// // 1. Rita de lodräta (vertikala) linjerna
+// for (var x = 0; x <= totalWidth; x += 40)
+// {
+//   line(x, 0, x, totalHeight, 1, "gray");
+// }
+
+// // 2. Rita de vågräta (horisontella) linjerna
+// for (var y = 0; y <= totalHeight; y += 40)
+// {
+//   line(0, y, totalWidth, y, 1, "gray");
+// }
+
+if(distance(player.x,kub.x)) {
+kub.speedright = player.speedright
 }
-
-// 2. Rita de vågräta (horisontella) linjerna
-for (var y = 0; y <= totalHeight; y += 40)
-{
-  line(0, y, totalWidth, y, 1, "gray");
-}
-
-
-
 
 
 

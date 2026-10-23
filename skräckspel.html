@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>läskigt</title>
+</head>
+<body>
+  <script src="http://koda.nu/simple.js">
+updatesPerSecond = 60
+
+var scene = {
+    x: 0,
+    y: 0,  
+}
+
+var player = {
+    x: totalWidth /2, 
+    y: totalHeight /2, 
+    size: 15, 
+    color: "blue", 
+    speed: 4,
+    haspistol: false,
+    hasshoptgun: false,
+}
+var aimX = 1
+var aimy = 0
+
+var score = 0
+var tid = 0
+
+var zombies = [
+
+
+
+]
+
+function drawPistol(x,y) {
+    rectangle(x - 8, y - 3, 16, 6, "silver")
+    rectangle(x + 3, y - 1, 7, 3, "gray")
+    rectangle(x - 5, y + 2, 5, 7, "saddlebrown")
+}
+
+function drawshutgun(x,y) {
+    rectangle(x - 12, y - 3, 22, 5, "saddlebrown")
+    rectangle(x + 5, y - 2, 13, 3, "silver")
+    rectangle(x - 7, y + 2, 5, 7, "saddlebrown")
+}
+
+
+
+
+function update() {
+clearScreen()
+//backgrund
+rectangle(0, 0, totalWidth, totalHeight, "black");
+
+
+//spelare
+circle(player.x,player.y,player.size,player.color)
+
+
+
+
+
+//movement till player
+if (keyboard.d) 
+player.x += player.speed; 
+
+//
+if (keyboard.a) 
+player.x -= player.speed; 
+
+//
+if (keyboard.w) 
+player.y -= player.speed; 
+
+//
+if (keyboard.s) 
+player.y += player.speed; 
+
+//
+if (keyboard.a && keyboard.w) 
+player.x += player.speed/4, player.y += player.speed/4
+
+//
+if (keyboard.a && keyboard.s) 
+player.x += player.speed/4, player.y -= player.speed/4
+
+//
+if (keyboard.d && keyboard.w) 
+player.x -= player.speed/4, player.y += player.speed/4
+
+//
+if (keyboard.d && keyboard.s) 
+player.x -= player.speed/4, player.y -= player.speed/4
+
+
+ //scene höger
+    if (player.x  > totalWidth) {
+       player.x = 0;
+        console.log("vänster")
+        scene.x = scene.x +1
+    }
+ //scene vänster
+
+     if (player.x  < 0) {
+        
+        player.x = totalWidth -1;
+        console.log("höger")
+        scene.x = scene.x -1
+     }
+
+//scene uppe
+
+    if (player.y < 0) {
+        player.y = totalHeight 
+        scene.y = scene.y +1
+    }
+
+//scene nere
+
+     if (player.y > totalHeight) {
+        player.y = 1;
+        scene.y = scene.y -1 
+     }
+
+// //scenes x
+// if (scene.x == 0 && scene.y == 0)
+// triangle(500, 40, 620, 180, 430, 180, "green");
+
+// if (scene.x == 1 && scene.y == 1)
+// triangle(500, 40, 620, 180, 430, 180, "red");
+
+// if (scene.x == 2 && scene.y == 1)
+// triangle(500, 40, 620, 180, 430, 180, "blue");
+
+// //scenes y 
+// if (scene.x == 0 && scene.y == 1)
+// triangle(500, 40, 620, 180, 430, 1800, "yellow");
+
+// if (scene.x == 0 && scene.y == 2)
+// triangle(500, 40, 620, 180, 430, 1800, "black");
+
+// if (scene.x == 1 && scene.y == 2)
+// triangle(500, 40, 620, 180, 430, 1800, "blue");
+
+// if (scene.x == 1 && scene.y == 3)
+// triangle(500, 40, 620, 180, 430, 1800, "red");
+
+
+
+text(30,30,20,"Scen: " + scene.x + "," + scene.y ,"white")  
+text(30,60,20,"WASD för att röra dig" ,"white")  
+
+}
+  </script>
+</body>
+</html>

@@ -1,0 +1,2024 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skräckspel - skogskopia</title>
+</head>
+<body>
+  <script src="http://koda.nu/simple.js">
+// Spelet uppdateras 60 gånger per sekund.
+updatesPerSecond = 60
+
+// Spelarens koordinat i världen: varje gång spelaren går utanför kanten byts scen.
+var scene = {
+    x: 0,
+    y: 0
+}
+
+// Spelarens position, utseende, rörelse, nuvarande vapen och ammunition.
+// Varje vapentyp har ett eget ammunitionsförråd som finns kvar vid vapenbyte.
+var player = {
+    x: totalWidth / 2,
+    y: Math.min(totalHeight - 100, 230),
+    size: 15,
+    speed: 4,
+    sprintSpeed: 7,
+    stamina: 100,
+    maxStamina: 100,
+    sprintLocked: false,
+    weapon: null,
+    ammo: 0,
+    pistolAmmo: 0,
+    shotgunAmmo: 0,
+    smgAmmo: 0,
+    rocketAmmo: 0,
+    revolverAmmo: 0,
+    rifleAmmo: 0,
+    flameAmmo: 0,
+    facing: "down",
+    lives: 3,
+    invulnerableUntil: 0,
+    hitFrame: -1000
+}
+
+// Sparar innehållet i varje besökt scen så att scenen finns kvar när man återvänder.
+var scenes = {}
+// Sparar om en viss y-nivå valdes till bossnivå, så x-scener delar samma val.
+var bossDepths = {}
+// Projektilerna som är på väg genom den aktuella scenen.
+var bullets = []
+// Styr om spelet ska avslutas efter att spelaren träffats av en zombie.
+var gameOver = false
+// Finalbossens segerläge visas separat från spelarens game over.
+var victory = false
+var victoryFrame = 0
+// Bildrutan då spelaren dog används för att animera skräcken och slutskärmen.
+var deathFrame = 0
+// Sparar vilken y-nivå spelaren var på när döden inträffade.
+var deathLevel = 0
+// Kommer ihåg om mellanslag var nedtryckt förra bildrutan, så ett tryck ger ett skott.
+var spaceWasDown = false
+// Kommer ihåg Q-knappens läge så vapnen bara byts en gång per knapptryckning.
+var weaponSwitchWasDown = false
+// Senaste siktade riktning; den sparas när spelaren slutar röra sig.
+var aimX = 1
+var aimY = 0
+// Räknar bildrutor och används bland annat för blinkande effekter och speltid.
+var frameCount = 0
+// Poäng för besegrade zombier och tid spelaren överlevde.
+var score = 0
+var survivedSeconds = 0
+// Webbläsarens ljudmotor. Den skapas efter första tangenttrycket för att tillåta ljud.
+var audioContext = null
+// Kommer ihåg senaste musikpulsen så melodin bara startar en gång per takt.
+var lastMusicBeat = -1
+var lastMusicMode = -1
+// Sparar när senaste fotsteget spelades så ljudet inte upprepas varje bildruta.
+var lastFootstepFrame = 0
+// Kommer ihåg föregående sprintläge så sprintljudet bara spelas när sprinten startar.
+var wasSprinting = false
+
+// Startar ljudmotorn först efter en tangenttryckning, när webbläsaren tillåter ljud.
+function unlockAudio() {
+    // En redan skapad ljudmotor kan vara pausad av webbläsaren; försök återuppta den.
+    if (audioContext) {
+        if (audioContext.state === "suspended") audioContext.resume()
+        return
+    }
+
+    // Olika webbläsare kan använda olika namn för Web Audio-klassen.
+    var AudioContextType = window.AudioContext || window.webkitAudioContext
+    if (AudioContextType) {
+        audioContext = new AudioContextType()
+        audioContext.resume()
+    }
+}
+
+// Lyssna efter användarens första tangenttryck så webbläsarens ljudspärr släpps.
+document.addEventListener("keydown", unlockAudio)
+
+// Spelar en kort ton med mjuk volymkurva och valfri tonhöjdsändring.
+function playTone(frequency, duration, wave, volume, endFrequency) {
+    // Om ljudet inte har aktiverats ännu avslutas funktionen utan att påverka spelet.
+    if (!audioContext) return
+    // Oscillatorn skapar tonen och gain-noden styr volymen över tid.
+    var oscillator = audioContext.createOscillator()
+    var gain = audioContext.createGain()
+    var now = audioContext.currentTime
+    // Vågformen ger tonen dess klang; frekvensändring kan skapa en glidande ton.
+    oscillator.type = wave || "square"
+    oscillator.frequency.setValueAtTime(frequency, now)
+    if (endFrequency) oscillator.frequency.linearRampToValueAtTime(endFrequency, now + duration)
+    gain.gain.setValueAtTime(volume || 0.08, now)
+    // Tonen tonas ut i stället för att stoppas tvärt.
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration)
+    // Koppla ljuddelarna till datorns högtalare och starta ljudet.
+    oscillator.connect(gain)
+    gain.connect(audioContext.destination)
+    oscillator.start(now)
+    oscillator.stop(now + duration)
+}
+
+// Spelar ett kort brus för skott, steg och explosioner.
+function playNoise(duration, volume, frequency) {
+    if (!audioContext) return
+    // Skapa en buffert med slumpvärden; avtagande styrka gör bruset kort.
+    var sampleCount = Math.floor(audioContext.sampleRate * duration)
+    var buffer = audioContext.createBuffer(1, sampleCount, audioContext.sampleRate)
+    var data = buffer.getChannelData(0)
+    for (var i = 0; i < sampleCount; i++) {
+        data[i] = (Math.random() * 2 - 1) * (1 - i / sampleCount)
+    }
+
+    // Filtrera bruset och tona ut det innan det skickas till högtalarna.
+    var source = audioContext.createBufferSource()
+    var filter = audioContext.createBiquadFilter()
+    var gain = audioContext.createGain()
+    var now = audioContext.currentTime
+    source.buffer = buffer
+    filter.type = "lowpass"
+    filter.frequency.setValueAtTime(frequency || 1800, now)
+    gain.gain.setValueAtTime(volume || 0.12, now)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration)
+    source.connect(filter)
+    filter.connect(gain)
+    gain.connect(audioContext.destination)
+    source.start(now)
+}
+
+// Samlar spelets olika ljudeffekter under namn som går att anropa från spellogiken.
+function playSound(name) {
+    if (!audioContext) return
+    // Varje namn kombinerar toner och brus med olika längd och tonhöjd.
+    if (name === "pistol") {
+        playNoise(0.09, 0.2, 2400)
+        playTone(150, 0.1, "square", 0.08, 55)
+        playTone(720, 0.035, "triangle", 0.025, 310)
+    } else if (name === "revolver") {
+        playNoise(0.14, 0.24, 1900)
+        playTone(125, 0.16, "sawtooth", 0.1, 42)
+        playTone(480, 0.06, "square", 0.035, 140)
+    } else if (name === "rifle") {
+        playNoise(0.11, 0.18, 2800)
+        playTone(210, 0.12, "square", 0.075, 75)
+        playTone(1100, 0.045, "triangle", 0.025, 440)
+    } else if (name === "flame") {
+        playNoise(0.12, 0.15, 850)
+        playTone(95, 0.13, "sawtooth", 0.07, 60)
+        playTone(180, 0.1, "triangle", 0.035, 75)
+    } else if (name === "shotgun") {
+        playNoise(0.2, 0.3, 1300)
+        playTone(95, 0.18, "sawtooth", 0.12, 35)
+        playNoise(0.08, 0.14, 450)
+    } else if (name === "smg") {
+        playNoise(0.045, 0.11, 2600)
+        playTone(190, 0.045, "square", 0.045, 90)
+        playTone(540, 0.025, "triangle", 0.018, 260)
+    } else if (name === "rocket") {
+        playNoise(0.25, 0.22, 900)
+        playTone(100, 0.3, "sawtooth", 0.1, 45)
+        playTone(320, 0.22, "triangle", 0.05, 60)
+    } else if (name === "explosion") {
+        playNoise(0.55, 0.38, 700)
+        playTone(70, 0.5, "sawtooth", 0.16, 25)
+    } else if (name === "hit") {
+        playTone(220, 0.12, "square", 0.08, 75)
+    } else if (name === "kill") {
+        playTone(300, 0.1, "triangle", 0.09, 110)
+    } else if (name === "pickup") {
+        playTone(520, 0.1, "square", 0.07, 780)
+        playTone(780, 0.14, "triangle", 0.055, 1040)
+    } else if (name === "ammo") {
+        playTone(420, 0.1, "square", 0.06, 620)
+    } else if (name === "scene") {
+        playTone(260, 0.18, "triangle", 0.06, 180)
+    } else if (name === "footstep") {
+        playNoise(0.035, 0.045, 500)
+    } else if (name === "sprint") {
+        playTone(180, 0.12, "triangle", 0.055, 360)
+    } else if (name === "staminaEmpty") {
+        playTone(220, 0.2, "square", 0.08, 90)
+    } else if (name === "bossWarning") {
+        playTone(130, 0.3, "sawtooth", 0.12, 55)
+    } else if (name === "bossDash") {
+        playNoise(0.35, 0.2, 1100)
+        playTone(90, 0.3, "sawtooth", 0.11, 35)
+    } else if (name === "bossHit") {
+        playTone(100, 0.18, "square", 0.12, 45)
+    } else if (name === "bossDeath") {
+        playNoise(0.8, 0.3, 500)
+        playTone(180, 0.8, "sawtooth", 0.13, 30)
+    } else if (name === "gameOver") {
+        playTone(220, 0.5, "sawtooth", 0.12, 55)
+        playTone(110, 0.9, "triangle", 0.08, 35)
+    } else if (name === "playerHit") {
+        playNoise(0.22, 0.22, 500)
+        playTone(190, 0.24, "sawtooth", 0.11, 42)
+    } else if (name === "victory") {
+        playTone(392, 0.42, "triangle", 0.09, 440)
+        playTone(523.25, 0.52, "square", 0.065, 587.33)
+        playTone(659.25, 0.72, "triangle", 0.075, 783.99)
+    }
+}
+
+// Spelar en egen loopande skräckmelodi som blir snabbare och mer trasig på större djup.
+function playBackgroundMusic(depth, finalBossMusic) {
+    if (!audioContext) return
+
+    var levelDepth = Math.max(0, Math.floor(depth))
+    var musicMode = finalBossMusic ? 1 : 0
+    if (musicMode !== lastMusicMode) {
+        lastMusicBeat = -1
+        lastMusicMode = musicMode
+    }
+    var beatFrames = finalBossMusic ? 24 : Math.max(20, 46 - Math.min(20, levelDepth))
+    var beat = Math.floor(frameCount / beatFrames)
+    if (beat === lastMusicBeat) return
+    lastMusicBeat = beat
+
+    // En långsam mollslinga ger musiken ett återkommande, olycksbådande tema.
+    var bassNotes = finalBossMusic ? [55, 58.27, 55, 73.42, 65.41, 58.27, 49, 65.41] : [73.42, 87.31, 65.41, 98, 73.42, 58.27, 87.31, 65.41]
+    var melodyNotes = finalBossMusic ? [110, 116.54, 98, 123.47, 110, 130.81, 98, 146.83] : [220, 261.63, 196, 246.94, 174.61, 220, 164.81, 196]
+    var noteIndex = beat % bassNotes.length
+    var glitchLevel = Math.min(0.68, levelDepth * 0.035)
+    var bassFrequency = bassNotes[noteIndex]
+    var melodyFrequency = melodyNotes[noteIndex]
+
+    // Längre in kan melodin plötsligt bli falsk eller hoppa upp en oktav.
+    if (Math.random() < glitchLevel) {
+        melodyFrequency *= Math.random() < 0.5 ? 1.414 : 0.943
+    }
+
+    playTone(bassFrequency, beatFrames / updatesPerSecond * (finalBossMusic ? 1.1 : 0.9), finalBossMusic || levelDepth >= 5 ? "sawtooth" : "triangle", finalBossMusic ? 0.065 : 0.025, bassFrequency * (finalBossMusic ? 0.82 : 0.96))
+    if (beat % 2 === 0) {
+        var melodyWave = finalBossMusic || levelDepth >= 8 ? "square" : "triangle"
+        playTone(melodyFrequency, beatFrames / updatesPerSecond * 0.65, melodyWave, finalBossMusic ? 0.035 : 0.018 + Math.min(0.01, levelDepth * 0.0005), melodyFrequency * (finalBossMusic || levelDepth >= 8 ? 0.78 : 0.98))
+    }
+
+    // Korta brus och avbrutna höga toner låter som störningar i en trasig radiosignal.
+    if (Math.random() < (finalBossMusic ? 0.46 : 0.035 + glitchLevel * 0.72)) {
+        var staticDuration = 0.025 + Math.random() * (finalBossMusic ? 0.09 : 0.025 + glitchLevel * 0.07)
+        playNoise(staticDuration, finalBossMusic ? 0.035 : 0.012 + glitchLevel * 0.025, 700 + Math.random() * (1800 + levelDepth * 180))
+        if (levelDepth >= 5 && Math.random() < glitchLevel) {
+            var glitchFrequency = 260 + Math.random() * 900
+            playTone(glitchFrequency, staticDuration, "square", 0.012 + glitchLevel * 0.018, glitchFrequency * (Math.random() < 0.5 ? 0.5 : 1.8))
+        }
+    }
+}
+
+// Tar ett liv, lämnar blod i scenen och ger kort osårbarhet så en kontakt inte tömmer alla liv.
+function loseLife(currentScene) {
+    if (gameOver || victory || frameCount < player.invulnerableUntil) return false
+    player.lives = Math.max(0, player.lives - 1)
+    player.hitFrame = frameCount
+    player.invulnerableUntil = frameCount + updatesPerSecond * 1.25
+    addBloodSplatter(currentScene, player.x, player.y, true)
+    playSound("playerHit")
+    if (player.lives === 0) triggerGameOver()
+    return true
+}
+
+// Startar game over en enda gång, oavsett vad som träffade spelaren.
+function triggerGameOver() {
+    if (gameOver || victory) return
+    gameOver = true
+    deathFrame = frameCount
+    deathLevel = Math.min(30, Math.abs(scene.y))
+    playSound("gameOver")
+}
+
+// Avslutar spelet först när den sista bossen på nivå 30 besegras.
+function triggerVictory() {
+    if (victory || gameOver) return
+    victory = true
+    victoryFrame = frameCount
+    bullets = []
+    playSound("victory")
+}
+
+// Räknar ut avståndet mellan två punkter på spelplanen.
+function distanceBetween(x1, y1, x2, y2) {
+    // Pythagoras sats: kvadrera skillnaderna i x och y och ta sedan roten.
+    var dx = x1 - x2
+    var dy = y1 - y2
+    return Math.sqrt(dx * dx + dy * dy)
+}
+
+// Väljer en slumpmässig position innanför scenens kanter och under vägbarriären.
+function randomPosition() {
+    return {
+        // Lämna en liten kantmarginal så saker inte hamnar utanför skärmen.
+        x: 35 + Math.random() * (totalWidth - 70),
+        // På startnivån placeras saker nedanför vägen; på andra nivåer används större delen av skärmen.
+        y: scene.y === 0 ? 175 + Math.random() * (totalHeight - 210) : 45 + Math.random() * (totalHeight - 90)
+    }
+}
+
+// Välj loot efter avstånd: raketkastare och SMG låses upp längre från start.
+function chooseWeapon(depth, roll) {
+    // roll är ett slumpvärde mellan 0 och 1; gränserna bestämmer vapenchanserna.
+    // Nya vapen blir tillgängliga längre in; alla scener väljer sedan bara ett.
+    if (depth >= 8) {
+        if (roll < 0.16) return "rocket"
+        if (roll < 0.32) return "flame"
+        if (roll < 0.48) return "rifle"
+        if (roll < 0.64) return "smg"
+        if (roll < 0.78) return "revolver"
+        if (roll < 0.9) return "shotgun"
+    } else if (depth >= 5) {
+        if (roll < 0.1) return "rocket"
+        if (roll < 0.2) return "flame"
+        if (roll < 0.38) return "rifle"
+        if (roll < 0.58) return "smg"
+        if (roll < 0.76) return "shotgun"
+        if (roll < 0.9) return "revolver"
+    } else if (depth >= 2) {
+        if (roll < 0.28) return "rifle"
+        if (roll < 0.5) return "smg"
+        if (roll < 0.72) return "shotgun"
+        if (roll < 0.9) return "revolver"
+    } else if (roll < 0.25) {
+        return "revolver"
+    } else if (roll < 0.45) {
+        return "shotgun"
+    }
+    return "pistol"
+}
+
+// Skapar innehållet för en ny scen: träd, zombier, vapen och ibland ett hus.
+function makeScene() {
+    // Samlar alla saker som hör till den här scenen.
+    var content = {
+        trees: [],
+        enemies: [],
+        enemyShots: [],
+        blood: [],
+        foliage: [],
+        buildings: [],
+        weapons: [],
+        house: null,
+        boss: null,
+        bossLevel: false
+    }
+    // Skräckdetaljer använder bara avståndet längs y-axeln, precis som svårighetsgraden.
+    var depth = Math.abs(scene.y)
+    content.depth = depth
+
+    // Varje lista börjar tom och fylls på medan scenen skapas.
+
+    // Längre in blir marken tätare av aska, ben, blodspår, runor och gravmarkörer.
+    var foliageCount = 34 + Math.floor(Math.random() * 25) + Math.min(36, depth * 2)
+    for (var foliageIndex = 0; foliageIndex < foliageCount; foliageIndex++) {
+        var foliagePosition = randomPosition()
+        var foliageRoll = Math.random()
+        var foliageType = "grass"
+        if (depth < 2) {
+            foliageType = foliageRoll < 0.42 ? "grass" : foliageRoll < 0.64 ? "dirt" : foliageRoll < 0.84 ? "stones" : "weeds"
+        } else if (depth < 5) {
+            foliageType = foliageRoll < 0.34 ? "grass" : foliageRoll < 0.53 ? "dirt" : foliageRoll < 0.7 ? "stones" : foliageRoll < 0.86 ? "weeds" : foliageRoll < 0.95 ? "bones" : "blood"
+        } else if (depth < 9) {
+            foliageType = foliageRoll < 0.22 ? "grass" : foliageRoll < 0.4 ? "dirt" : foliageRoll < 0.55 ? "stones" : foliageRoll < 0.69 ? "weeds" : foliageRoll < 0.81 ? "bones" : foliageRoll < 0.92 ? "blood" : "rune"
+        } else {
+            foliageType = foliageRoll < 0.13 ? "grass" : foliageRoll < 0.29 ? "dirt" : foliageRoll < 0.43 ? "stones" : foliageRoll < 0.56 ? "weeds" : foliageRoll < 0.7 ? "bones" : foliageRoll < 0.82 ? "blood" : foliageRoll < 0.93 ? "rune" : "grave"
+        }
+        content.foliage.push({
+            x: foliagePosition.x,
+            y: foliagePosition.y,
+            type: foliageType
+        })
+    }
+
+    // Skapa små grupper av samma trädtyp i stället för att sprida alla träd jämnt.
+    var treeGroupCount = 3 + Math.floor(Math.random() * 4) + Math.min(3, Math.floor(depth / 5))
+    for (var groupIndex = 0; groupIndex < treeGroupCount; groupIndex++) {
+        var groupCenter = randomPosition()
+        var treeRoll = Math.random()
+        // Djupare skog byter gradvis ut friska granar mot döda och förvridna träd.
+        var groupType = depth >= 9 ? treeRoll < 0.55 ? 1 : treeRoll < 0.82 ? 2 : 0 : depth >= 5 ? treeRoll < 0.4 ? 1 : treeRoll < 0.72 ? 2 : 0 : depth >= 2 ? treeRoll < 0.25 ? 1 : treeRoll < 0.55 ? 2 : 0 : Math.floor(treeRoll * 3)
+        var treesInGroup = 2 + Math.floor(Math.random() * 4)
+        for (var treeIndex = 0; treeIndex < treesInGroup; treeIndex++) {
+            // Sprid träden kring gruppens mittpunkt så de ser ut som små skogsdungar.
+            var tree = {
+                x: groupCenter.x + (Math.random() - 0.5) * 86,
+                y: groupCenter.y + (Math.random() - 0.5) * 70,
+                type: groupType
+            }
+            if (tree.x > 20 && tree.x < totalWidth - 20 && tree.y > 20 && tree.y < totalHeight - 20 &&
+                distanceBetween(tree.x, tree.y, totalWidth / 2, totalHeight / 2) > 65 &&
+                distanceBetween(tree.x, tree.y, player.x, player.y) > 55) {
+                content.trees.push(tree)
+            }
+        }
+    }
+
+    // Svårighetsgrad, bossnivåer och vapen räknas bara längs y-axeln.
+    // Bestäm bosschansen en gång per y-nivå så sidledsscener delar samma resultat.
+    if (bossDepths[depth] === undefined) {
+        var nearbyBoss = false
+        // Gå igenom redan valda bossnivåer och blockera för täta bossmöten.
+        for (var checkedDepth in bossDepths) {
+            if (bossDepths[checkedDepth] && Math.abs(depth - Number(checkedDepth)) < 4) {
+                nearbyBoss = true
+            }
+        }
+            // Nivå 30 är alltid finalboss; andra bossar behåller den slumpade chansen.
+            bossDepths[depth] = depth === 30 || depth >= 5 && !nearbyBoss && Math.random() < 0.18
+    }
+    content.bossLevel = bossDepths[depth]
+        // Finalbossarenan får bara bossen; övriga scener följer samma fiendesvårighet som tidigare.
+        var enemyCount = depth === 0 || depth === 30 ? 0 : content.bossLevel ? 1 + Math.floor(Math.random() * 2) : Math.min(16, 2 + depth + Math.floor(Math.random() * 3))
+    for (var j = 0; j < enemyCount; j++) {
+        var enemyPosition = randomPosition()
+        // Nya fiendetyper låses upp gradvis: förföljare, brute och spottare.
+        var availableEnemyTypes = Math.min(8, 2 + Math.floor(depth / 2))
+        var enemyType = content.bossLevel ? 0 : Math.floor(Math.random() * availableEnemyTypes)
+        // Varje sort har egen grundhälsa; djupet gör även gamla fiender tåligare.
+        var baseHealth = enemyType === 1 ? 5 : enemyType === 2 ? 2 : enemyType === 3 ? 3 : enemyType === 4 ? 8 : enemyType === 5 ? 2 : enemyType === 6 ? 10 : enemyType === 7 ? 3 : 1
+        var enemyHealth = content.bossLevel ? 1 : baseHealth + Math.floor(depth / 3)
+        // Flytta zombier som hamnat alltför nära spelaren till andra sidan scenen.
+        if (distanceBetween(enemyPosition.x, enemyPosition.y, player.x, player.y) < 140) {
+            enemyPosition.x = player.x < totalWidth / 2 ? totalWidth - 40 : 40
+            enemyPosition.y = player.y < totalHeight / 2 ? totalHeight - 50 : 50
+        }
+        content.enemies.push({
+            x: enemyPosition.x,
+            y: enemyPosition.y,
+            type: enemyType,
+            hp: enemyHealth,
+            maxHp: enemyHealth,
+            // Små jägare springer, medan stora fiender och spottare rör sig långsamt.
+            speed: enemyType === 1 ? 0.4 + Math.random() * 0.3 : enemyType === 2 || enemyType === 5 ? 1.3 + Math.random() * 0.5 : enemyType === 3 ? 0.5 + Math.random() * 0.3 : enemyType === 4 || enemyType === 6 ? 0.35 + Math.random() * 0.25 : enemyType === 7 ? 0.3 + Math.random() * 0.2 : 0.7 + Math.random() * 0.5,
+            nextShotFrame: frameCount + updatesPerSecond * (2 + Math.random() * 2)
+        })
+    }
+
+    // Bossen har mycket liv och blir tåligare på djupare bossnivåer.
+    if (content.bossLevel) {
+        var bossPosition = randomPosition()
+        // Varje bossnivå väljer mellan tre silhuetter och attackmönster.
+        var bossType = depth === 30 ? 3 : Math.floor(Math.random() * 3)
+        content.boss = {
+            x: bossPosition.x,
+            y: bossPosition.y,
+            type: bossType,
+            hp: depth === 30 ? 1200 : 120 + depth * 10,
+            maxHp: depth === 30 ? 1200 : 120 + depth * 10,
+            // Bossens första attack kommer efter sex sekunder; tiden mäts i bildrutor.
+            nextDashFrame: frameCount + updatesPerSecond * 6,
+            warningPlayed: false,
+            isDashing: false,
+            dashEndFrame: 0,
+            dashX: 0,
+            dashY: 0,
+            nextShotFrame: frameCount + updatesPerSecond * 3,
+            warningStartFrame: 0,
+            attackX: 0,
+            attackY: 0,
+            slamHit: false,
+            finalAttackMode: 0
+        }
+    }
+
+    // Byggnader har 40 % chans att finnas och kan vara en eller två per scen.
+    if (Math.random() < 0.4) {
+        var buildingCount = 1 + Math.floor(Math.random() * 2)
+        for (var buildingIndex = 0; buildingIndex < buildingCount; buildingIndex++) {
+            var buildingPosition = randomPosition()
+            if (distanceBetween(buildingPosition.x, buildingPosition.y, totalWidth / 2, totalHeight / 2) > 120) {
+                content.buildings.push({
+                    x: buildingPosition.x,
+                    y: buildingPosition.y,
+                    type: Math.floor(Math.random() * 4)
+                })
+            }
+        }
+    }
+
+    // Exakt ett slumpat vapen placeras i varje scen.
+    var weaponPosition = randomPosition()
+    content.weapons.push({
+        x: weaponPosition.x,
+        y: weaponPosition.y,
+        type: chooseWeapon(depth, Math.random())
+    })
+
+    // Huset är separat från dekorationerna eftersom det kan fylla på ammunition.
+    if (Math.random() < 0.2) {
+        var housePosition = {
+            x: 100 + Math.random() * (totalWidth - 200),
+            y: 100 + Math.random() * (totalHeight - 200)
+        }
+        content.house = {
+            x: housePosition.x,
+            y: housePosition.y,
+            type: Math.floor(Math.random() * 4),
+            ammo: true
+        }
+    }
+
+    return content
+}
+
+// Hämtar aktuell scen, och skapar den första gången spelaren besöker den.
+function getCurrentScene() {
+    var key = scene.x + "," + scene.y
+    if (!scenes[key]) {
+        scenes[key] = makeScene()
+    }
+    return scenes[key]
+}
+
+// Ritar en minikarta över x-scenerna och y-nivåerna som spelaren redan besökt.
+function drawVisitedMap() {
+    var mapX = 12
+    var mapY = 35
+    var cellWidth = 7
+    var cellHeight = 4
+
+    rectangle(mapX - 5, mapY - 18, 88, 174, "dimgray")
+    rectangle(mapX - 2, mapY - 15, 82, 168, "black")
+    text(mapX + 2, mapY - 3, 13, "KARTA", "orange")
+
+    // Den spelbara vägen går från start nivå 0 mot -30; positiva y-nivåer utelämnas.
+    for (var mapYLevel = 0; mapYLevel >= -30; mapYLevel--) {
+        var rowY = mapY + 8 + Math.abs(mapYLevel) * cellHeight
+        for (var mapXScene = -5; mapXScene <= 5; mapXScene++) {
+            var sceneKey = mapXScene + "," + mapYLevel
+            if (scenes[sceneKey]) {
+                var tileColor = mapXScene === scene.x && mapYLevel === scene.y ? "orange" : scenes[sceneKey].bossLevel ? "red" : "deepskyblue"
+                rectangle(mapX + (mapXScene + 5) * cellWidth, rowY, cellWidth - 1, cellHeight - 1, tileColor)
+            }
+        }
+    }
+
+    // Markera starten och slutnivån utan att visa otillgängliga områden ovanför vägen.
+    text(mapX + 2, mapY + 148, 11, "0 START     -30 SLUT", "silver")
+}
+
+// Lägger till blodstänk när en zombie träffas och ett större stänk när den dör.
+function addBloodSplatter(currentScene, x, y, isDeath) {
+    // En träff ger ett litet stänk; ett dödsfall ger fler och större droppar.
+    var dropCount = isDeath ? 12 : 5
+    currentScene.blood.push({
+        x: x,
+        y: y + 8,
+        size: isDeath ? 7 + Math.random() * 5 : 3 + Math.random() * 3,
+        color: "darkred"
+    })
+
+    for (var i = 0; i < dropCount; i++) {
+        // Slumpa en vinkel och ett avstånd för att sprida blod runt träffen.
+        var angle = Math.random() * Math.PI * 2
+        var distance = 5 + Math.random() * (isDeath ? 35 : 18)
+        currentScene.blood.push({
+            x: x + Math.cos(angle) * distance,
+            y: y + 8 + Math.sin(angle) * distance * 0.55,
+            size: 1 + Math.random() * (isDeath ? 4 : 2),
+            color: i % 2 === 0 ? "darkred" : "maroon"
+        })
+    }
+
+    // Begränsa mängden blod som sparas så att långa spel inte samlar för mycket data.
+    while (currentScene.blood.length > 120) {
+        currentScene.blood.shift()
+    }
+}
+
+// Ritar alla blodfläckar som har sparats i scenen.
+function drawBlood(currentScene) {
+    for (var i = 0; i < currentScene.blood.length; i++) {
+        var stain = currentScene.blood[i]
+        // Runda positionerna till ett rutnät så blodet ser pixligt ut.
+        rectangle(Math.floor(stain.x / 3) * 3, Math.floor(stain.y / 3) * 3, stain.size * 2, stain.size, stain.color)
+    }
+}
+
+// Ritar en pixelgran av barrträd, kala grenar eller ett knotigt lövträd.
+function drawTree(x, y, type) {
+    if (type === 0) {
+        // Tät gran med flera mörka barrlager.
+        rectangle(x - 3, y - 14, 6, 14, "dimgray")
+        rectangle(x - 7, y - 18, 14, 5, "darkgreen")
+        rectangle(x - 11, y - 24, 22, 6, "darkolivegreen")
+        rectangle(x - 15, y - 31, 30, 7, "darkgreen")
+        rectangle(x - 10, y - 38, 20, 7, "darkolivegreen")
+        rectangle(x - 5, y - 45, 10, 7, "darkgreen")
+        rectangle(x - 2, y - 49, 4, 5, "dimgray")
+    } else if (type === 1) {
+        // Dött barrträd med spetsig topp och kala, ojämna grenar.
+        rectangle(x - 3, y - 34, 6, 34, "dimgray")
+        rectangle(x - 11, y - 27, 9, 4, "maroon")
+        rectangle(x - 14, y - 31, 5, 5, "darkred")
+        rectangle(x + 2, y - 21, 11, 4, "maroon")
+        rectangle(x + 8, y - 25, 5, 5, "darkred")
+        rectangle(x - 9, y - 14, 8, 4, "maroon")
+        rectangle(x - 12, y - 17, 5, 5, "darkred")
+        rectangle(x - 5, y - 41, 10, 8, "darkred")
+        rectangle(x - 2, y - 48, 4, 8, "dimgray")
+    } else {
+        // Knotigt lövträd med bred, mörk krona och enstaka röda löv.
+        rectangle(x - 4, y - 24, 8, 24, "dimgray")
+        rectangle(x - 2, y - 34, 5, 15, "saddlebrown")
+        rectangle(x - 17, y - 39, 34, 12, "darkolivegreen")
+        rectangle(x - 12, y - 46, 24, 9, "darkgreen")
+        rectangle(x - 21, y - 34, 10, 8, "darkgreen")
+        rectangle(x + 11, y - 36, 10, 8, "darkolivegreen")
+        rectangle(x - 13, y - 42, 4, 3, "maroon")
+        rectangle(x + 8, y - 32, 4, 3, "darkred")
+    }
+}
+
+// Ritar olika markdetaljer i en begränsad, mörk färgpalett.
+function drawFoliage(foliage) {
+    // Runda positionerna till pixelrutnätet så dekorationerna passar spelets stil.
+    var x = Math.floor(foliage.x / 4) * 4
+    var y = Math.floor(foliage.y / 4) * 4
+    var shade = Math.floor((foliage.x + foliage.y) / 16) % 2 === 0
+
+    if (foliage.type === "dirt") {
+        // Ojämn jordfläck, bruten av små mörka pixelkanter.
+        rectangle(x - 8, y, 20, 4, shade ? "saddlebrown" : "darkslategray")
+        rectangle(x - 4, y - 4, 16, 4, "dimgray")
+        rectangle(x - 12, y + 4, 12, 4, "darkslategray")
+        rectangle(x + 8, y + 4, 8, 4, "saddlebrown")
+    } else if (foliage.type === "stones") {
+        // Små stenar har mörka skuggor och en pixel ljusare ovansida.
+        rectangle(x - 8, y, 12, 8, "dimgray")
+        rectangle(x - 4, y - 4, 8, 4, "gray")
+        rectangle(x + 8, y + 4, 12, 8, "darkslategray")
+        rectangle(x + 12, y, 8, 4, "dimgray")
+    } else if (foliage.type === "weeds") {
+        // Vissna strån sticker upp ur marken i blek olivgrön färg.
+        rectangle(x, y - 8, 4, 12, "darkolivegreen")
+        rectangle(x - 4, y - 12, 4, 8, "olivedrab")
+        rectangle(x + 4, y - 16, 4, 12, "darkolivegreen")
+        rectangle(x + 8, y - 8, 4, 8, "olivedrab")
+        rectangle(x - 4, y + 4, 16, 3, "saddlebrown")
+    } else if (foliage.type === "bones") {
+        // Benbitar och en liten skalle dyker upp där skogen blivit farligare.
+        rectangle(x - 9, y, 18, 4, "ivory")
+        rectangle(x - 11, y - 3, 5, 5, "ivory")
+        rectangle(x + 6, y - 3, 5, 5, "ivory")
+        rectangle(x - 4, y - 7, 8, 7, "gray")
+        rectangle(x - 3, y - 5, 2, 2, "black")
+        rectangle(x + 1, y - 5, 2, 2, "black")
+    } else if (foliage.type === "blood") {
+        // Mörka pölar med små röda pixlar ger marken äldre blodspår.
+        rectangle(x - 12, y, 24, 5, "maroon")
+        rectangle(x - 8, y - 4, 16, 4, "darkred")
+        rectangle(x - 4, y + 4, 8, 3, "red")
+        rectangle(x + 12, y + 3, 4, 7, "darkred")
+    } else if (foliage.type === "rune") {
+        // Röda runor syns tydligare bland den mörka marken på djupare nivåer.
+        rectangle(x - 8, y - 8, 4, 20, "maroon")
+        rectangle(x + 4, y - 8, 4, 20, "maroon")
+        rectangle(x - 4, y - 4, 8, 4, "darkred")
+        rectangle(x - 4, y + 4, 8, 4, "darkred")
+        rectangle(x - 1, y - 12, 3, 28, shade ? "red" : "darkred")
+    } else if (foliage.type === "grave") {
+        // Små lutande gravstenar gör att de djupaste scenerna känns övergivna.
+        rectangle(x - 8, y - 12, 16, 16, "dimgray")
+        rectangle(x - 4, y - 16, 8, 4, "gray")
+        rectangle(x - 1, y - 9, 3, 10, "darkred")
+        rectangle(x - 4, y - 6, 9, 3, "darkred")
+        rectangle(x - 12, y + 4, 24, 4, "saddlebrown")
+    } else {
+        // Grästuvan får en av två dämpade nyanser för mindre upprepning.
+        var grassShade = shade ? "darkolivegreen" : "olivedrab"
+        rectangle(x, y, 4, 3, grassShade)
+        rectangle(x - 4, y - 4, 4, 4, grassShade)
+        rectangle(x + 4, y - 5, 4, 5, "forestgreen")
+        rectangle(x, y - 8, 4, 4, "olivedrab")
+    }
+}
+
+// Ritar den röda månen, bildrader och slumpmässiga störningar i kanterna.
+function drawAtmosphere(depth) {
+    var darkness = Math.min(5, Math.floor(depth / 3))
+    // Månen byggs av rektanglar för att passa spelets pixelutseende.
+    rectangle(totalWidth - 102, 44, 64, 32, darkness >= 3 ? "maroon" : "darkred")
+    rectangle(totalWidth - 94, 36, 48, 48, darkness >= 4 ? "maroon" : "darkred")
+    rectangle(totalWidth - 78, 36, 32, 8, "black")
+    rectangle(totalWidth - 46, 44, 8, 24, "black")
+    rectangle(totalWidth - 86, 56, 8, 8, "maroon")
+    rectangle(totalWidth - 66, 68, 8, 8, "maroon")
+
+    // Tunna horisontella rader ger skärmen en gammal CRT-/scanline-känsla.
+    for (var y = 8; y < totalHeight; y += 12) {
+        rectangle(0, y, totalWidth, 1, "darkslategray")
+    }
+
+    // Ju djupare spelaren går, desto fler bildstörningar bryter igenom mörkret.
+    var staticCount = 5 + Math.min(12, Math.floor(depth / 2))
+    var staticChance = Math.min(0.8, 0.35 + depth * 0.035)
+    for (var i = 0; i < staticCount; i++) {
+        if (Math.random() < staticChance) {
+            var staticX = Math.random() < 0.5 ? Math.random() * 45 : totalWidth - Math.random() * 45
+            var staticY = Math.random() * totalHeight
+            rectangle(Math.floor(staticX / 4) * 4, Math.floor(staticY / 4) * 4, 4 + Math.floor(Math.random() * 8), 4, "dimgray")
+        }
+    }
+
+    // Röda glitchränder tillkommer gradvis på de djupaste nivåerna.
+    var redGlitchCount = Math.min(6, Math.floor(depth / 3))
+    for (var glitch = 0; glitch < redGlitchCount; glitch++) {
+        if (Math.random() < 0.18 + Math.min(0.35, depth * 0.015)) {
+            var glitchY = Math.floor(Math.random() * totalHeight / 4) * 4
+            var glitchX = Math.floor(Math.random() * totalWidth / 8) * 8
+            rectangle(glitchX, glitchY, 30 + Math.random() * 110, 3, glitch % 2 === 0 ? "darkred" : "maroon")
+        }
+    }
+}
+
+// Visar en kort bildstörning med jämna mellanrum för en flimrig skräckeffekt.
+function drawScreenFlicker() {
+    // 240 bildrutor motsvarar ungefär fyra sekunder vid 60 uppdateringar per sekund.
+    if (frameCount % 240 < 2) {
+        var flickerY = 100 + Math.random() * (totalHeight - 200)
+        rectangle(0, flickerY, totalWidth, 3, "darkred")
+        rectangle(Math.random() * totalWidth / 2, flickerY + 4, totalWidth / 3, 1, "dimgray")
+    }
+}
+
+// Ritar en zombie. Typen bestämmer färg, storlek och kroppsdetaljer.
+function drawEnemy(enemy) {
+    // Fiendens typ väljer färg, storlek och ögon innan kroppen ritas.
+    var x = enemy.x
+    var y = enemy.y
+    var bodyColor = enemy.type === 0 ? "darkseagreen" : enemy.type === 1 ? "dimgray" : enemy.type === 2 ? "darkred" : enemy.type === 3 ? "olivedrab" : enemy.type === 5 ? "maroon" : enemy.type === 6 ? "saddlebrown" : enemy.type === 7 ? "darkgreen" : "purple"
+    var size = enemy.type === 1 || enemy.type === 6 ? 13 : enemy.type === 2 || enemy.type === 5 ? 7 : enemy.type === 4 ? 16 : enemy.type === 7 ? 11 : 9
+    var eyeColor = (frameCount + enemy.type * 13) % 90 < 58 ? "red" : "maroon"
+
+    rectangle(x - size, y - 20, size * 2, 16, bodyColor)
+    rectangle(x - size / 2, y - 4, size, size + 5, bodyColor)
+    rectangle(x - size, y + 2, 5, 3, "darkred")
+    rectangle(x - 5, y - 14, 4, 4, eyeColor)
+    rectangle(x + 2, y - 14, 4, 4, eyeColor)
+    rectangle(x - 7, y + 1, 5, 3, "darkred")
+
+    if (enemy.type === 0) {
+        rectangle(x - 11, y - 5, 9, 3, bodyColor)
+        rectangle(x + 2, y - 7, 10, 3, bodyColor)
+    } else if (enemy.type === 1) {
+        rectangle(x - size - 4, y - 23, size * 2 + 8, 6, "gray")
+        rectangle(x - 5, y - 14, 4, 4, "red")
+        rectangle(x + 2, y - 14, 4, 4, "red")
+        rectangle(x - 10, y + 7, 20, 4, "darkred")
+    } else if (enemy.type === 2) {
+        rectangle(x - 2, y - 19, 3, 7, "ivory")
+        rectangle(x + 3, y - 18, 3, 6, "ivory")
+        rectangle(x - 13, y - 3, 11, 3, bodyColor)
+        rectangle(x + 2, y - 3, 12, 3, bodyColor)
+    } else if (enemy.type === 3) {
+        rectangle(x - 11, y - 14, 4, 3, "ivory")
+        rectangle(x + 7, y - 14, 4, 3, "ivory")
+        rectangle(x - 5, y - 5, 10, 2, "darkred")
+    } else if (enemy.type === 4) {
+        rectangle(x - size - 4, y - 25, size * 2 + 8, 9, "maroon")
+        rectangle(x - 15, y - 7, 30, 18, bodyColor)
+        rectangle(x - 12, y + 8, 8, 8, "gray")
+        rectangle(x + 4, y + 8, 8, 8, "gray")
+        rectangle(x - 8, y - 16, 6, 6, "yellow")
+        rectangle(x + 3, y - 16, 6, 6, "yellow")
+    } else if (enemy.type === 5) {
+        // Den hukande förföljaren är liten, snabb och har lysande ögon.
+        rectangle(x - 11, y - 13, 22, 11, "maroon")
+        rectangle(x - 8, y - 5, 7, 10, "darkred")
+        rectangle(x + 2, y - 5, 7, 10, "darkred")
+        rectangle(x - 7, y - 12, 4, 4, "orange")
+        rectangle(x + 3, y - 12, 4, 4, "orange")
+        rectangle(x - 15, y - 4, 7, 4, "maroon")
+        rectangle(x + 8, y - 4, 9, 4, "maroon")
+    } else if (enemy.type === 6) {
+        // Den bepansrade bruten har platt huvud, tunga axlar och en stor käft.
+        rectangle(x - 18, y - 24, 36, 12, "dimgray")
+        rectangle(x - 22, y - 12, 44, 22, "saddlebrown")
+        rectangle(x - 17, y + 7, 12, 11, "darkslategray")
+        rectangle(x + 5, y + 7, 12, 11, "darkslategray")
+        rectangle(x - 11, y - 18, 7, 5, "red")
+        rectangle(x + 4, y - 18, 7, 5, "red")
+        rectangle(x - 8, y - 3, 16, 6, "black")
+        rectangle(x - 5, y - 3, 3, 5, "ivory")
+        rectangle(x + 2, y - 3, 3, 5, "ivory")
+        rectangle(x - 24, y - 9, 7, 14, "gray")
+        rectangle(x + 17, y - 9, 7, 14, "gray")
+    } else if (enemy.type === 7) {
+        // Spottaren har en lysande säck som avslöjar dess avståndsattack.
+        rectangle(x - 13, y - 20, 26, 24, "darkgreen")
+        rectangle(x - 9, y - 25, 18, 9, "olivedrab")
+        rectangle(x - 6, y - 13, 4, 4, "orange")
+        rectangle(x + 3, y - 13, 4, 4, "orange")
+        rectangle(x - 5, y - 2, 11, 5, "black")
+        rectangle(x - 7, y + 4, 5, 10, "dimgray")
+        rectangle(x + 3, y + 4, 5, 10, "dimgray")
+        rectangle(x - 3, y - 24, 6, 4, "lime")
+    }
+
+    // Livmätaren krymper när zombien skadas.
+    rectangle(x - 10, y - 25, 20, 3, "darkred")
+    rectangle(x - 10, y - 25, 20 * enemy.hp / enemy.maxHp, 3, "red")
+}
+
+// Ritar en pistol av enkla rektanglar.
+function drawPistol(x, y) {
+    // Den ljusa stålkroppen och det bruna handtaget gör pistolen lätt att känna igen.
+    rectangle(x - 11, y - 7, 25, 14, "darkslategray")
+    rectangle(x - 8, y - 5, 19, 8, "silver")
+    rectangle(x + 9, y - 3, 12, 5, "deepskyblue")
+    rectangle(x - 5, y + 3, 7, 10, "saddlebrown")
+    rectangle(x - 7, y - 9, 7, 3, "white")
+}
+
+// Ritar ett hagelgevär av enkla rektanglar.
+function drawShotgun(x, y) {
+    // Lång dubbel pipa, träkolv och mässingsdetalj skiljer det från de andra vapnen.
+    rectangle(x - 18, y - 6, 20, 11, "saddlebrown")
+    rectangle(x - 2, y - 7, 24, 9, "darkslategray")
+    rectangle(x + 5, y - 5, 23, 3, "silver")
+    rectangle(x + 5, y, 23, 3, "gray")
+    rectangle(x - 7, y + 3, 5, 7, "gold")
+    rectangle(x - 19, y - 8, 9, 3, "maroon")
+}
+
+// Ritar en kulsprutepistol och en raketkastare som vapen på marken.
+function drawSMG(x, y) {
+    // Kort, blågrå kropp, magasin och sikte ger SMG:n en kompakt profil.
+    rectangle(x - 14, y - 7, 23, 13, "darkslategray")
+    rectangle(x - 11, y - 5, 17, 7, "deepskyblue")
+    rectangle(x + 7, y - 4, 17, 4, "silver")
+    rectangle(x - 4, y + 5, 6, 11, "black")
+    rectangle(x - 12, y + 6, 5, 6, "saddlebrown")
+    rectangle(x - 12, y - 11, 8, 4, "gold")
+}
+
+function drawRocketLauncher(x, y) {
+    // Den stora gröna tuben, öppna mynningen och orange varningsbandet gör raketkastaren tydlig.
+    rectangle(x - 17, y - 9, 33, 18, "darkgreen")
+    rectangle(x - 13, y - 6, 25, 12, "olivedrab")
+    rectangle(x + 12, y - 8, 8, 16, "silver")
+    rectangle(x + 18, y - 5, 4, 10, "black")
+    rectangle(x - 5, y + 8, 7, 11, "saddlebrown")
+    rectangle(x - 14, y - 11, 8, 3, "orange")
+    rectangle(x - 2, y - 11, 8, 3, "orange")
+}
+
+// Ritar en kraftig revolver som är lätt att skilja från pistolen.
+function drawRevolver(x, y) {
+    rectangle(x - 12, y - 7, 23, 13, "black")
+    rectangle(x - 9, y - 5, 15, 8, "saddlebrown")
+    rectangle(x + 5, y - 4, 15, 5, "silver")
+    rectangle(x - 1, y - 8, 8, 6, "gold")
+    rectangle(x - 6, y + 3, 6, 10, "darkred")
+}
+
+// Ritar ett långt gevär med kolv, sikte och tydlig pipa.
+function drawRifle(x, y) {
+    rectangle(x - 19, y - 6, 18, 12, "saddlebrown")
+    rectangle(x - 5, y - 5, 27, 8, "darkslategray")
+    rectangle(x + 17, y - 3, 19, 4, "silver")
+    rectangle(x - 2, y - 9, 13, 3, "deepskyblue")
+    rectangle(x + 1, y + 3, 5, 7, "black")
+}
+
+// Ritar en flamethrower med bränsletank och orange munstycke.
+function drawFlamethrower(x, y) {
+    rectangle(x - 16, y - 8, 24, 16, "darkgreen")
+    rectangle(x - 12, y - 5, 17, 10, "olivedrab")
+    rectangle(x + 5, y - 5, 22, 6, "dimgray")
+    rectangle(x + 24, y - 4, 10, 4, "orange")
+    rectangle(x - 5, y + 7, 7, 10, "black")
+    rectangle(x - 14, y - 11, 10, 3, "red")
+}
+
+// Ritar spelarens vapen i rätt riktning så det syns vad karaktären håller i.
+function drawHeldWeapon(x, y, facing) {
+    // Utan ett valt vapen ska inga vapendelar ritas i spelarens hand.
+    if (!player.weapon) return
+
+    if (facing === "left" || facing === "right") {
+        // Horisontella vapen ritas åt vänster eller höger beroende på riktningen.
+        var direction = facing === "right" ? 1 : -1
+        var gunColor = player.weapon === "rocket" || player.weapon === "flame" ? "olivedrab" : player.weapon === "shotgun" || player.weapon === "revolver" ? "saddlebrown" : player.weapon === "smg" ? "deepskyblue" : "silver"
+        var gunAccent = player.weapon === "rocket" || player.weapon === "flame" ? "orange" : player.weapon === "shotgun" || player.weapon === "revolver" ? "gold" : player.weapon === "smg" ? "yellow" : "deepskyblue"
+        var gunLength = player.weapon === "rocket" || player.weapon === "flame" ? 24 : player.weapon === "rifle" ? 28 : player.weapon === "shotgun" ? 22 : player.weapon === "revolver" ? 16 : player.weapon === "smg" ? 17 : 12
+        var handX = direction > 0 ? x + 7 : x - 12
+        var gunX = direction > 0 ? x + 12 : x - 12 - gunLength
+        rectangle(handX, y - 9, 6, 8, "saddlebrown")
+        rectangle(gunX - 2, y - 10, gunLength + 4, 9, "black")
+        rectangle(gunX, y - 8, gunLength, 5, gunColor)
+        rectangle(gunX + (direction > 0 ? gunLength - 3 : 1), y - 8, 3, 5, gunAccent)
+        if (player.weapon === "smg") rectangle(gunX + 4, y - 3, 5, 7, "dimgray")
+        if (player.weapon === "shotgun") rectangle(gunX + 5, y - 2, 8, 3, "gold")
+        if (player.weapon === "rocket") rectangle(gunX + 5, y - 12, 10, 3, "orange")
+        if (player.weapon === "revolver") rectangle(gunX + 3, y - 11, 7, 4, "gold")
+        if (player.weapon === "rifle") rectangle(gunX + 8, y - 12, 9, 3, "deepskyblue")
+        if (player.weapon === "flame") rectangle(gunX + gunLength - 2, y - 9, 8, 7, "orange")
+    } else {
+        // Vertikala vapen riktas uppåt eller nedåt.
+        var verticalDirection = facing === "up" ? -1 : 1
+        var gunColorVertical = player.weapon === "rocket" || player.weapon === "flame" ? "olivedrab" : player.weapon === "shotgun" || player.weapon === "revolver" ? "saddlebrown" : player.weapon === "smg" ? "deepskyblue" : "silver"
+        var gunAccentVertical = player.weapon === "rocket" || player.weapon === "flame" ? "orange" : player.weapon === "shotgun" || player.weapon === "revolver" ? "gold" : player.weapon === "smg" ? "yellow" : "deepskyblue"
+        var gunLengthVertical = player.weapon === "rocket" || player.weapon === "flame" ? 24 : player.weapon === "rifle" ? 28 : player.weapon === "shotgun" ? 22 : player.weapon === "revolver" ? 16 : player.weapon === "smg" ? 17 : 12
+        rectangle(x + 5, y - 5, 6, 5, "saddlebrown")
+        var gunY = verticalDirection < 0 ? y - 5 - gunLengthVertical : y
+        rectangle(x + 4, gunY - 2, 10, gunLengthVertical + 4, "black")
+        rectangle(x + 7, gunY, 5, gunLengthVertical, gunColorVertical)
+        rectangle(x + 7, verticalDirection < 0 ? gunY : gunY + gunLengthVertical - 3, 5, 3, gunAccentVertical)
+        if (player.weapon === "smg") rectangle(x + 2, gunY + 5, 7, 5, "dimgray")
+        if (player.weapon === "shotgun") rectangle(x + 12, gunY + 5, 3, 8, "gold")
+        if (player.weapon === "rocket") rectangle(x + 4, gunY + 5, 11, 4, "orange")
+        if (player.weapon === "revolver") rectangle(x + 12, gunY + 4, 5, 6, "gold")
+        if (player.weapon === "rifle") rectangle(x + 2, gunY + 8, 4, 8, "saddlebrown")
+        if (player.weapon === "flame") rectangle(x + 4, gunY + gunLengthVertical - 2, 11, 7, "orange")
+    }
+}
+
+// Ritar spelarens pixelkaraktär vänd åt det håll den senast gick.
+function drawPlayer() {
+    // Flimra vid träff så skadan blir synlig utan att spelaren försvinner permanent.
+    if (frameCount < player.invulnerableUntil && Math.floor(frameCount / 5) % 2 === 0) return
+    // Koordinaterna rundas till närmaste 3-pixelssteg för en grov pixelstil.
+    var x = Math.floor(player.x / 3) * 3
+    var y = Math.floor(player.y / 3) * 3
+    var walking = keyboard.a || keyboard.d || keyboard.w || keyboard.s
+    var legOffset = walking && frameCount % 12 < 6 ? 2 : 0
+
+    // Blå jacka, mörkblå skuggor, axlar och bälte ger karaktären en tydlig kropp.
+    rectangle(x - 12, y - 17, 5, 13, "darkblue")
+    rectangle(x - 9, y - 19, 18, 16, "blue")
+    rectangle(x - 7, y - 17, 14, 3, "deepskyblue")
+    rectangle(x - 2, y - 15, 4, 9, "navy")
+    rectangle(x - 9, y - 5, 18, 3, "darkblue")
+    rectangle(x - 6, y - 4, 12, 4, "silver")
+    rectangle(x - 6, y - 25, 12, 6, "saddlebrown")
+    rectangle(x - 8, y - 22, 16, 4, "saddlebrown")
+    rectangle(x - 8, y - 20, 16, 3, "dimgray")
+
+    // Ansiktet och ögonen vrids mot spelarens rörelseriktning.
+    if (player.facing === "down") {
+        rectangle(x - 5, y - 18, 3, 3, "red")
+        rectangle(x + 2, y - 18, 3, 3, "red")
+        rectangle(x - 2, y - 15, 4, 2, "black")
+    } else if (player.facing === "left") {
+        rectangle(x - 9, y - 18, 3, 4, "red")
+        rectangle(x - 8, y - 13, 4, 2, "black")
+    } else if (player.facing === "right") {
+        rectangle(x + 6, y - 18, 3, 4, "red")
+        rectangle(x + 4, y - 13, 4, 2, "black")
+    } else {
+        rectangle(x - 6, y - 21, 12, 3, "saddlebrown")
+        rectangle(x - 3, y - 17, 6, 2, "black")
+    }
+
+    // Blå armar sitter vid axlarna; händerna och benen syns tydligt runt kroppen.
+    rectangle(x - 14, y - 15, 5, 10, "blue")
+    rectangle(x - 14, y - 6, 5, 4, "saddlebrown")
+    rectangle(x + 9, y - 15, 5, 10, "blue")
+    rectangle(x + 9, y - 6, 5, 4, "saddlebrown")
+    rectangle(x - 8, y - 2, 6, 10 + legOffset, "darkblue")
+    rectangle(x + 2, y - 2, 6, 10 + (walking ? 2 - legOffset : 0), "darkblue")
+    rectangle(x - 9, y + 7 + legOffset, 7, 3, "black")
+    rectangle(x + 1, y + 7 + (walking ? 2 - legOffset : 0), 7, 3, "black")
+    drawHeldWeapon(x, y, player.facing)
+}
+
+// Rita vägen, bilen och en obruten barriär i varje scen längs x-led.
+function drawRoadBarrier() {
+    // Vägen och barriären finns bara i raden med y = 0; bilen finns bara i startscenen.
+    if (scene.y !== 0) return
+    rectangle(0, 55, totalWidth, 96, "dimgray")
+    rectangle(0, 65, totalWidth, 5, "silver")
+    for (var x = 14; x < totalWidth; x += 54) {
+        rectangle(x, 96, 28, 5, "ivory")
+    }
+    rectangle(0, 146, totalWidth, 18, "saddlebrown")
+    rectangle(0, 142, totalWidth, 5, "darkred")
+
+    // Bilen finns kvar på startscenen bakom barriären.
+    if (scene.x === 0) {
+        // Beräkna bilens vänsterkant från vägmitt så den parkeras centrerad i körfältet.
+        var carX = totalWidth / 2 - 47
+        rectangle(carX + 10, 79, 94, 27, "darkred")
+        rectangle(carX + 25, 67, 52, 17, "maroon")
+        rectangle(carX + 32, 70, 17, 11, "dimgray")
+        rectangle(carX + 53, 70, 18, 11, "dimgray")
+        rectangle(carX, 102, 18, 8, "black")
+        rectangle(carX + 85, 102, 18, 8, "black")
+        rectangle(carX + 5, 105, 14, 6, "silver")
+        rectangle(carX + 78, 105, 14, 6, "silver")
+    }
+}
+
+// Ritar en hög metallgrind vid den yttersta östra eller västra scenen.
+function drawLevelFence() {
+    var fenceX
+    if (scene.x === 5) {
+        fenceX = totalWidth - 40
+    } else if (scene.x === -5) {
+        fenceX = 0
+    } else {
+        return
+    }
+
+    // Mörk bakgrund gör att metallstängerna syns tydligt mot skogen.
+    rectangle(fenceX, 0, 40, totalHeight, "black")
+    rectangle(fenceX + 2, 0, 4, totalHeight, "dimgray")
+    rectangle(fenceX + 34, 0, 4, totalHeight, "dimgray")
+
+    // Lodräta stänger och tvärslåar bildar ett sammanhängande galler.
+    for (var barX = fenceX + 8; barX < fenceX + 34; barX += 8) {
+        rectangle(barX, 0, 3, totalHeight, "silver")
+        rectangle(barX + 1, 0, 1, totalHeight, "gray")
+    }
+    for (var railY = 0; railY < totalHeight; railY += 48) {
+        rectangle(fenceX, railY, 40, 5, "silver")
+        rectangle(fenceX, railY + 5, 40, 2, "dimgray")
+    }
+
+    // Spetsar längs ovansidan ger stängslet en övergiven, farlig känsla.
+    for (var spikeX = fenceX + 4; spikeX < fenceX + 40; spikeX += 8) {
+        rectangle(spikeX, 0, 3, 12, "darkred")
+        rectangle(spikeX - 2, 0, 7, 3, "silver")
+    }
+}
+
+// Ritar olika pixelbyggnader: stuga, lada, kapell eller övergivet butikshus.
+function drawBuilding(x, y, type) {
+    // type väljer vilken ritning som används: stuga, lada, kapell eller butik.
+    if (type === 0) {
+        rectangle(x - 44, y - 28, 88, 57, "dimgray")
+        rectangle(x - 52, y - 36, 104, 8, "darkred")
+        rectangle(x - 40, y - 44, 80, 8, "darkred")
+        rectangle(x - 28, y - 52, 56, 8, "darkred")
+        rectangle(x - 18, y - 14, 15, 17, "black")
+        rectangle(x + 12, y - 14, 15, 17, "black")
+        rectangle(x - 8, y + 1, 16, 28, "saddlebrown")
+        rectangle(x + 3, y + 14, 3, 3, "gold")
+    } else if (type === 1) {
+        rectangle(x - 56, y - 34, 112, 65, "saddlebrown")
+        rectangle(x - 64, y - 42, 128, 10, "maroon")
+        rectangle(x - 49, y - 26, 18, 20, "black")
+        rectangle(x + 31, y - 26, 18, 20, "black")
+        rectangle(x - 10, y - 8, 20, 39, "dimgray")
+        rectangle(x - 42, y + 7, 11, 24, "darkred")
+        rectangle(x + 31, y + 7, 11, 24, "darkred")
+    } else if (type === 2) {
+        rectangle(x - 37, y - 25, 74, 56, "gray")
+        rectangle(x - 45, y - 33, 90, 8, "dimgray")
+        rectangle(x - 8, y - 54, 16, 21, "darkred")
+        rectangle(x - 5, y - 66, 10, 12, "dimgray")
+        rectangle(x - 27, y - 13, 12, 13, "maroon")
+        rectangle(x + 15, y - 13, 12, 13, "maroon")
+        rectangle(x - 8, y + 3, 16, 28, "black")
+    } else {
+        rectangle(x - 49, y - 30, 98, 61, "dimgray")
+        rectangle(x - 55, y - 36, 110, 8, "saddlebrown")
+        rectangle(x - 39, y - 51, 78, 15, "darkred")
+        rectangle(x - 34, y - 18, 20, 16, "black")
+        rectangle(x + 14, y - 18, 20, 16, "black")
+        rectangle(x - 10, y + 2, 20, 29, "saddlebrown")
+        rectangle(x - 48, y + 23, 96, 5, "black")
+    }
+}
+
+// Ritar ammunitionshuset som en av byggnadstyperna med dörr och tak.
+function drawHouse(x, y, type) {
+    // Huset använder samma byggnadsritningar men får ett synligt ammunitionshus-utseende.
+    drawBuilding(x, y, type === undefined ? 0 : type)
+    rectangle(x + 2, y + 17, 4, 4, "gold")
+    rectangle(x - 56, y + 31, 112, 5, "black")
+}
+
+// Ritar ammunitionslådan som spelaren kan plocka upp vid huset.
+function drawAmmoBox(x, y) {
+    rectangle(x - 12, y - 9, 24, 18, "darkred")
+    rectangle(x - 12, y - 9, 24, 4, "silver")
+    text(x - 7, y + 5, 13, "AMMO", "white")
+}
+
+// Lägger ammunition i rätt förråd och uppdaterar aktuell ammunition om vapnet hålls.
+function addAmmo(weapon, amount) {
+    // Lägg ammunition i just det vapnets förråd; uppdatera även aktuell ammo om vapnet hålls.
+    if (weapon === "revolver") {
+        player.revolverAmmo += amount
+        if (player.weapon === "revolver") player.ammo = player.revolverAmmo
+    } else if (weapon === "rifle") {
+        player.rifleAmmo += amount
+        if (player.weapon === "rifle") player.ammo = player.rifleAmmo
+    } else if (weapon === "flame") {
+        player.flameAmmo += amount
+        if (player.weapon === "flame") player.ammo = player.flameAmmo
+    } else if (weapon === "shotgun") {
+        player.shotgunAmmo += amount
+        if (player.weapon === "shotgun") {
+            player.ammo = player.shotgunAmmo
+        }
+    } else if (weapon === "smg") {
+        player.smgAmmo += amount
+        if (player.weapon === "smg") {
+            player.ammo = player.smgAmmo
+        }
+    } else if (weapon === "rocket") {
+        player.rocketAmmo += amount
+        if (player.weapon === "rocket") {
+            player.ammo = player.rocketAmmo
+        }
+    } else {
+        player.pistolAmmo += amount
+        if (player.weapon === "pistol") {
+            player.ammo = player.pistolAmmo
+        }
+    }
+}
+
+// Hämtar ammunitionen som finns kvar för en viss vapentyp.
+function ammoForWeapon(weapon) {
+    // Returnera rätt reserv så vapenbyte kan hitta skott utan att blanda vapentyper.
+    if (weapon === "revolver") return player.revolverAmmo
+    if (weapon === "rifle") return player.rifleAmmo
+    if (weapon === "flame") return player.flameAmmo
+    if (weapon === "rocket") return player.rocketAmmo
+    if (weapon === "smg") return player.smgAmmo
+    if (weapon === "shotgun") return player.shotgunAmmo
+    if (weapon === "pistol") return player.pistolAmmo
+    return 0
+}
+
+// Sparar aktuell ammunition i förrådet för det vapen som just sköt.
+function setWeaponAmmo(weapon, amount) {
+    if (weapon === "revolver") player.revolverAmmo = amount
+    else if (weapon === "rifle") player.rifleAmmo = amount
+    else if (weapon === "flame") player.flameAmmo = amount
+    else if (weapon === "rocket") player.rocketAmmo = amount
+    else if (weapon === "smg") player.smgAmmo = amount
+    else if (weapon === "shotgun") player.shotgunAmmo = amount
+    else if (weapon === "pistol") player.pistolAmmo = amount
+}
+
+// Byter automatiskt till nästa vapen med skott kvar, eller lämnar spelaren obeväpnad.
+function switchToAvailableWeapon() {
+    // Prioritera kraftigare vapen; byt till första vapnet i listan som har skott kvar.
+    var choices = ["rocket", "flame", "rifle", "smg", "shotgun", "revolver", "pistol"]
+    for (var i = 0; i < choices.length; i++) {
+        if (ammoForWeapon(choices[i]) > 0) {
+            player.weapon = choices[i]
+            player.ammo = ammoForWeapon(choices[i])
+            return
+        }
+    }
+    player.weapon = null
+    player.ammo = 0
+}
+
+// Q växlar mellan de vapen som redan har ammunition kvar.
+function cycleWeapon() {
+    var choices = ["pistol", "revolver", "shotgun", "smg", "rifle", "flame", "rocket"]
+    var currentIndex = -1
+    for (var index = 0; index < choices.length; index++) {
+        if (choices[index] === player.weapon) currentIndex = index
+    }
+    for (var step = 1; step <= choices.length; step++) {
+        var nextWeapon = choices[(currentIndex + step) % choices.length]
+        if (ammoForWeapon(nextWeapon) > 0) {
+            player.weapon = nextWeapon
+            player.ammo = ammoForWeapon(nextWeapon)
+            playSound("pickup")
+            return
+        }
+    }
+}
+
+// Huset fyller på varje vapens förråd utan att ta bort ammunition som redan finns.
+function restockAllAmmo() {
+    // Math.max behåller ett större befintligt förråd och fyller bara upp till miniminivån.
+    player.pistolAmmo = Math.max(player.pistolAmmo, 32)
+    player.shotgunAmmo = Math.max(player.shotgunAmmo, 16)
+    player.smgAmmo = Math.max(player.smgAmmo, 120)
+    player.rocketAmmo = Math.max(player.rocketAmmo, 6)
+    player.revolverAmmo = Math.max(player.revolverAmmo, 30)
+    player.rifleAmmo = Math.max(player.rifleAmmo, 60)
+    player.flameAmmo = Math.max(player.flameAmmo, 100)
+    if (player.weapon) {
+        player.ammo = ammoForWeapon(player.weapon)
+    } else {
+        switchToAvailableWeapon()
+    }
+}
+
+// Mängden ammunition som ett vapen ger när det hittas eller i ett hus.
+function ammoPickupAmount(weapon, fromHouse) {
+    // Hus ger större påfyllning än enstaka vapen som hittas ute på marken.
+    if (weapon === "revolver") return fromHouse ? 30 : 12
+    if (weapon === "rifle") return fromHouse ? 60 : 24
+    if (weapon === "flame") return fromHouse ? 100 : 40
+    if (weapon === "rocket") return fromHouse ? 2 : 3
+    if (weapon === "smg") return fromHouse ? 60 : 45
+    if (weapon === "shotgun") return fromHouse ? 24 : 8
+    return fromHouse ? 26 : 16
+}
+
+// Gör vapnens interna namn lättare att förstå i gränssnittet.
+function weaponName(weapon) {
+    // Översätt interna kortnamn till text som spelaren förstår.
+    if (weapon === "revolver") return "Revolver"
+    if (weapon === "rifle") return "Gevär"
+    if (weapon === "flame") return "Eldkastare"
+    if (weapon === "rocket") return "Raketkastare"
+    if (weapon === "smg") return "SMG"
+    if (weapon === "shotgun") return "Hagelgevär"
+    if (weapon === "pistol") return "Pistol"
+    return "Inget vapen"
+}
+
+// Skadar en zombie och delar ut poäng om träffen besegrar den.
+function damageZombie(currentScene, enemy, damage) {
+    // Skada dras från livmätaren; funktionen returnerar true om zombien besegras.
+    enemy.hp -= damage
+    addBloodSplatter(currentScene, enemy.x, enemy.y, enemy.hp <= 0)
+    playSound(enemy.hp <= 0 ? "kill" : "hit")
+    if (enemy.hp <= 0) {
+        score += enemy.type === 6 ? 120 : enemy.type === 7 ? 75 : enemy.type === 5 ? 60 : enemy.type === 4 ? 100 : enemy.type === 1 ? 50 : enemy.type === 2 ? 30 : enemy.type === 3 ? 40 : 20
+        return true
+    }
+    return false
+}
+
+// Skadar bossen; bossens träffar ger extra poäng när den besegras.
+function damageBoss(currentScene, damage) {
+    // En besegrad boss ger 500 poäng och kan inte skadas igen.
+    if (!currentScene.boss || currentScene.boss.hp <= 0) return false
+    currentScene.boss.hp -= damage
+    addBloodSplatter(currentScene, currentScene.boss.x, currentScene.boss.y, currentScene.boss.hp <= 0)
+    playSound(currentScene.boss.hp <= 0 ? "bossDeath" : "bossHit")
+    if (currentScene.boss.hp <= 0) {
+        currentScene.boss.hp = 0
+        score += 500
+        if (currentScene.boss.type === 3 && Math.abs(scene.y) === 30) {
+            triggerVictory()
+        }
+        return true
+    }
+    return false
+}
+
+// Skapar en synlig fiendeprojektil riktad mot spelarens position.
+function addEnemyShot(currentScene, x, y, targetX, targetY, speed, damage, spread, color) {
+    var angle = Math.atan2(targetY - y, targetX - x) + (spread || 0)
+    currentScene.enemyShots.push({
+        x: x,
+        y: y,
+        speedX: Math.cos(angle) * speed,
+        speedY: Math.sin(angle) * speed,
+        damage: damage,
+        color: color || "lime",
+        distance: 0
+    })
+}
+
+// Ger bossen ett namn för HUD:en och dess separata utseende.
+function bossName(type) {
+    if (type === 1) return "GIFTSPOTTER"
+    if (type === 2) return "MARKSLAGAREN"
+    if (type === 3) return "DEN SISTA"
+    return "VÄGSLUKAREN"
+}
+
+// Ritar den stora bossen och dess separata livmätare.
+function drawBoss(boss) {
+    var enraged = boss.hp <= boss.maxHp / 2
+    var bodyColor = enraged ? "red" : boss.type === 1 ? "darkgreen" : boss.type === 2 ? "dimgray" : "darkred"
+    var eyeColor = enraged ? "orange" : boss.type === 1 ? "lime" : "yellow"
+
+    if (boss.type === 1) {
+        // Giftspotterns spindelliknande kropp och lysande giftsäck skiljer den från de andra bossarna.
+        rectangle(boss.x - 27, boss.y - 35, 54, 18, "darkolivegreen")
+        rectangle(boss.x - 24, boss.y - 17, 48, 37, bodyColor)
+        rectangle(boss.x - 18, boss.y - 42, 36, 13, "lime")
+        rectangle(boss.x - 12, boss.y - 39, 6, 5, "black")
+        rectangle(boss.x + 6, boss.y - 39, 6, 5, "black")
+        rectangle(boss.x - 39, boss.y - 10, 15, 5, "olivedrab")
+        rectangle(boss.x + 24, boss.y - 10, 15, 5, "olivedrab")
+        rectangle(boss.x - 34, boss.y + 7, 17, 5, "darkgreen")
+        rectangle(boss.x + 17, boss.y + 7, 17, 5, "darkgreen")
+        rectangle(boss.x - 10, boss.y + 8, 20, 8, "black")
+        rectangle(boss.x - 4, boss.y + 8, 4, 5, "lime")
+    } else if (boss.type === 2) {
+        // Markslagarens breda stenkropp och lysande runor varnar för dess markattack.
+        rectangle(boss.x - 40, boss.y - 40, 80, 26, "black")
+        rectangle(boss.x - 34, boss.y - 34, 68, 56, bodyColor)
+        rectangle(boss.x - 28, boss.y - 20, 18, 18, "darkslategray")
+        rectangle(boss.x + 10, boss.y - 20, 18, 18, "darkslategray")
+        rectangle(boss.x - 18, boss.y - 16, 10, 10, eyeColor)
+        rectangle(boss.x + 8, boss.y - 16, 10, 10, eyeColor)
+        rectangle(boss.x - 13, boss.y + 1, 26, 7, "black")
+        rectangle(boss.x - 6, boss.y + 1, 5, 6, "ivory")
+        rectangle(boss.x + 2, boss.y + 1, 5, 6, "ivory")
+        rectangle(boss.x - 30, boss.y + 22, 20, 15, "dimgray")
+        rectangle(boss.x + 10, boss.y + 22, 20, 15, "dimgray")
+        rectangle(boss.x - 43, boss.y - 23, 12, 25, "saddlebrown")
+        rectangle(boss.x + 31, boss.y - 23, 12, 25, "saddlebrown")
+    } else if (boss.type === 3) {
+        // Finalbossen är flera gånger större och har ett torn av kroppar med glödande kärna.
+        var finalScale = enraged ? 1.08 : 1
+        rectangle(boss.x - 72 * finalScale, boss.y - 82 * finalScale, 144 * finalScale, 58 * finalScale, "black")
+        rectangle(boss.x - 60 * finalScale, boss.y - 70 * finalScale, 120 * finalScale, 52 * finalScale, "maroon")
+        rectangle(boss.x - 47 * finalScale, boss.y - 34 * finalScale, 94 * finalScale, 94 * finalScale, bodyColor)
+        rectangle(boss.x - 62 * finalScale, boss.y + 42 * finalScale, 42 * finalScale, 36 * finalScale, "dimgray")
+        rectangle(boss.x + 20 * finalScale, boss.y + 42 * finalScale, 42 * finalScale, 36 * finalScale, "dimgray")
+        rectangle(boss.x - 105 * finalScale, boss.y - 28 * finalScale, 52 * finalScale, 22 * finalScale, "darkred")
+        rectangle(boss.x + 53 * finalScale, boss.y - 28 * finalScale, 52 * finalScale, 22 * finalScale, "darkred")
+        rectangle(boss.x - 34 * finalScale, boss.y - 20 * finalScale, 20 * finalScale, 18 * finalScale, eyeColor)
+        rectangle(boss.x + 14 * finalScale, boss.y - 20 * finalScale, 20 * finalScale, 18 * finalScale, eyeColor)
+        rectangle(boss.x - 23 * finalScale, boss.y + 14 * finalScale, 46 * finalScale, 13 * finalScale, "black")
+        rectangle(boss.x - 15 * finalScale, boss.y + 14 * finalScale, 8 * finalScale, 11 * finalScale, "ivory")
+        rectangle(boss.x + 7 * finalScale, boss.y + 14 * finalScale, 8 * finalScale, 11 * finalScale, "ivory")
+        rectangle(boss.x - 24 * finalScale, boss.y - 51 * finalScale, 48 * finalScale, 18 * finalScale, "orange")
+        rectangle(boss.x - 14 * finalScale, boss.y - 47 * finalScale, 28 * finalScale, 10 * finalScale, "yellow")
+        rectangle(boss.x - 28 * finalScale, boss.y - 100 * finalScale, 56 * finalScale, 18 * finalScale, "dimgray")
+        rectangle(boss.x - 15 * finalScale, boss.y - 116 * finalScale, 30 * finalScale, 18 * finalScale, "maroon")
+    } else {
+        // Vägslukaren behåller den ursprungliga bossens stora röda kropp och gula ögon.
+        rectangle(boss.x - 31, boss.y - 48, 62, 30, "maroon")
+        rectangle(boss.x - 28, boss.y - 18, 56, 50, bodyColor)
+        rectangle(boss.x - 24, boss.y + 17, 15, 16, "dimgray")
+        rectangle(boss.x + 9, boss.y + 17, 15, 16, "dimgray")
+        rectangle(boss.x - 16, boss.y - 26, 10, 10, eyeColor)
+        rectangle(boss.x + 6, boss.y - 26, 10, 10, eyeColor)
+        rectangle(boss.x - 14, boss.y - 7, 28, 4, "black")
+    }
+
+    var healthBarWidth = boss.type === 3 ? 200 : 84
+    var healthBarX = boss.x - healthBarWidth / 2
+    var healthBarY = boss.y - (boss.type === 3 ? 136 : 62)
+    rectangle(healthBarX, healthBarY, healthBarWidth, 9, "dimgray")
+    rectangle(healthBarX, healthBarY, healthBarWidth * boss.hp / boss.maxHp, 9, boss.type === 3 ? "orange" : "red")
+}
+
+// Ger varje bossnivå en egen färg och finalarenan en mörk, glödande spricka.
+function drawBossArena(bossType) {
+    var arenaColor = bossType === 1 ? "darkgreen" : bossType === 2 ? "dimgray" : bossType === 3 ? "black" : "darkred"
+    rectangle(0, 0, totalWidth, totalHeight, arenaColor)
+    for (var y = 145; y < totalHeight; y += 90) {
+        rectangle(0, y, totalWidth, 3, bossType === 1 ? "darkolivegreen" : bossType === 2 ? "darkslategray" : "maroon")
+    }
+    rectangle(0, totalHeight - 55, totalWidth, 5, "black")
+    if (bossType === 3) {
+        rectangle(totalWidth / 2 - 8, 0, 16, totalHeight, "darkred")
+        rectangle(totalWidth / 2 - 3, 0, 6, totalHeight, "red")
+        text(totalWidth / 2 - 115, 35, 26, "FINALBOSS - NIVÅ 30", "orange")
+    } else {
+        text(totalWidth / 2 - 65, 35, 26, bossName(bossType), bossType === 1 ? "lime" : bossType === 2 ? "silver" : "red")
+    }
+}
+
+// Ritar en kort röd blixt och ett växande, pixligt blodstänk över dödsskärmen.
+function drawDeathScreen() {
+    var deathAge = frameCount - deathFrame
+
+    // De första bildrutorna blixtrar rött innan skärmen faller tillbaka till mörker.
+    if (deathAge < 7) {
+        rectangle(0, 0, totalWidth, totalHeight, deathAge % 2 === 0 ? "red" : "darkred")
+    } else {
+        rectangle(0, 0, totalWidth, totalHeight, "black")
+        for (var stripeY = 0; stripeY < totalHeight; stripeY += 24) {
+            rectangle(0, stripeY, totalWidth, 3, "darkred")
+        }
+    }
+
+    // Ojämna röda rutor bildar ett blodstänk som sprider sig ut från mitten.
+    var spread = Math.min(totalWidth, totalHeight, deathAge * 7)
+    for (var blot = 0; blot < 18; blot++) {
+        var blotX = totalWidth / 2 + Math.sin(blot * 91) * spread * (0.35 + (blot % 4) * 0.12)
+        var blotY = totalHeight / 2 + Math.cos(blot * 47) * spread * (0.3 + (blot % 3) * 0.15)
+        var blotSize = 8 + (blot % 5) * 5
+        rectangle(blotX, blotY, blotSize, blotSize, blot % 3 === 0 ? "maroon" : "darkred")
+        rectangle(blotX + 3, blotY + 3, Math.max(3, blotSize / 2), Math.max(3, blotSize / 2), "red")
+    }
+
+    // Blodränderna rinner ned från skärmens överkant under den första sekunden.
+    var dripLength = Math.min(totalHeight * 0.65, Math.max(0, deathAge - 4) * 3)
+    for (var drip = 0; drip < 13; drip++) {
+        var dripX = (drip * 83 + 19) % totalWidth
+        var dripWidth = 5 + (drip % 4) * 3
+        var dripOffset = (drip * 17) % 38
+        var currentDripLength = Math.max(0, dripLength - dripOffset)
+        if (currentDripLength > 0) {
+            rectangle(dripX, 0, dripWidth + 5, Math.min(12, currentDripLength), "maroon")
+            rectangle(dripX + 3, 8, dripWidth, currentDripLength, "darkred")
+            rectangle(dripX + 2, currentDripLength + 4, dripWidth + 2, 7, "red")
+        }
+    }
+
+    // Slutresultatet får en mörk ram ovanpå effekten så texten förblir lättläst.
+    rectangle(totalWidth / 2 - 205, totalHeight / 2 - 94, 410, 182, "maroon")
+    rectangle(totalWidth / 2 - 198, totalHeight / 2 - 87, 396, 168, "black")
+    text(totalWidth / 2 - 125, totalHeight / 2 - 53, 36, "DU DOG...", "red")
+    text(totalWidth / 2 - 116, totalHeight / 2 - 13, 22, "SLUTPOÄNG: " + score, "white")
+    text(totalWidth / 2 - 162, totalHeight / 2 + 17, 18, "NIVÅ " + deathLevel + "  |  ÖVERLEVDE: " + Math.floor(deathFrame / updatesPerSecond) + " SEK", "silver")
+    if (deathAge < 90) {
+        text(totalWidth / 2 - 123, totalHeight / 2 + 48, 15, "NÅGOT FÖLJDE MED DIG...", "darkred")
+    }
+}
+
+// Visar en tydlig segerbild efter att finalbossen har besegrats.
+function drawVictoryScreen() {
+    var victoryAge = frameCount - victoryFrame
+    rectangle(0, 0, totalWidth, totalHeight, "black")
+    for (var glow = 0; glow < 8; glow++) {
+        var glowWidth = totalWidth - glow * 36
+        rectangle((totalWidth - glowWidth) / 2, 45 + glow * 23, glowWidth, 4, glow % 2 === 0 ? "darkred" : "maroon")
+        rectangle((totalWidth - glowWidth) / 2, totalHeight - 49 - glow * 23, glowWidth, 4, glow % 2 === 0 ? "darkred" : "maroon")
+    }
+    rectangle(totalWidth / 2 - 220, totalHeight / 2 - 105, 440, 210, "maroon")
+    rectangle(totalWidth / 2 - 212, totalHeight / 2 - 97, 424, 194, "black")
+    text(totalWidth / 2 - 150, totalHeight / 2 - 59, 38, "DU ÖVERLEVDE", "orange")
+    text(totalWidth / 2 - 149, totalHeight / 2 - 15, 21, "FINALBOSSEN ÄR BESEGRAD", "white")
+    text(totalWidth / 2 - 125, totalHeight / 2 + 22, 18, "SLUTPOÄNG: " + score, "deepskyblue")
+    text(totalWidth / 2 - 143, totalHeight / 2 + 53, 16, "DU KLARADE NIVÅ 30", "lime")
+    if (victoryAge < updatesPerSecond * 3) {
+        text(totalWidth / 2 - 100, totalHeight / 2 + 79, 13, "SKOGEN HAR TYSTNAT...", "silver")
+    }
+}
+
+// Lägger en blodig kant över skärmen efter träff; färre och mörkare fläckar tonar bort effekten.
+function drawHitOverlay() {
+    var hitAge = frameCount - player.hitFrame
+    if (hitAge < 0 || hitAge >= updatesPerSecond) return
+    var blotCount = Math.max(1, 10 - Math.floor(hitAge / 7))
+    var bloodColor = hitAge < 18 ? "red" : hitAge < 42 ? "darkred" : "maroon"
+    for (var blot = 0; blot < blotCount; blot++) {
+        var blotX = (blot * 97 + 23) % totalWidth
+        var blotSize = 16 + (blot * 11) % 32
+        var topY = (blot * 31) % 34
+        var bottomY = totalHeight - 34 - (blot * 23) % 34
+        rectangle(blotX, topY, blotSize, 10 + blotSize / 3, bloodColor)
+        rectangle(blotX + 4, topY + 8, Math.max(4, blotSize / 2), 18 + blot * 2, "darkred")
+        rectangle(blotX, bottomY, blotSize, 10 + blotSize / 3, bloodColor)
+        rectangle(blotX + 4, bottomY - 14, Math.max(4, blotSize / 2), 18 + blot, "darkred")
+    }
+}
+
+// Huvudloop: körs en gång per bildruta och sköter ritning, rörelse och spelregler.
+function update() {
+    // Uppdatera tiden och måla om bakgrunden med skräckstämningens bildeffekter.
+    frameCount += 1
+    rectangle(0, 0, totalWidth, totalHeight, "black")
+    drawAtmosphere(Math.abs(scene.y))
+
+    // Frys spelet efter dödsögonblicket medan skräckbilden spelas upp.
+    if (gameOver) {
+        drawDeathScreen()
+        if (frameCount - deathFrame >= updatesPerSecond * 4) {
+            stopUpdate()
+        }
+        return
+    }
+
+    // Segerbilden stannar kvar efter finalbossens död utan att fiender kan fortsätta anfalla.
+    if (victory) {
+        drawVictoryScreen()
+        if (frameCount - victoryFrame >= updatesPerSecond * 8) {
+            stopUpdate()
+        }
+        return
+    }
+
+    var currentScene = getCurrentScene()
+    // Spelets bakgrundsmelodi följer djupet och pausas när dödsskärmen börjar.
+    playBackgroundMusic(Math.abs(scene.y), currentScene.boss && currentScene.boss.type === 3)
+
+    if (currentScene.bossLevel) {
+        drawBossArena(currentScene.boss.type)
+    }
+    drawRoadBarrier()
+    drawBlood(currentScene)
+
+    // Rita gräs, jord, stenar och vissna plantor innan större föremål läggs ovanpå.
+    for (var foliageIndex = 0; foliageIndex < currentScene.foliage.length; foliageIndex++) {
+        drawFoliage(currentScene.foliage[foliageIndex])
+    }
+
+    // Rita skogens grupperade träd ovanpå markdetaljerna.
+    for (var i = 0; i < currentScene.trees.length; i++) {
+        drawTree(currentScene.trees[i].x, currentScene.trees[i].y, currentScene.trees[i].type)
+    }
+
+    // Rita slumpmässigt placerade byggnader i scenen.
+    for (var buildingIndex = 0; buildingIndex < currentScene.buildings.length; buildingIndex++) {
+        var building = currentScene.buildings[buildingIndex]
+        drawBuilding(building.x, building.y, building.type)
+    }
+    // Stängslet ritas framför terrängen längs världens västra och östra yttergräns.
+    drawLevelFence()
+
+    // Rita huset och fyll på ammunition när spelaren går fram till lådan.
+    if (currentScene.house) {
+        drawHouse(currentScene.house.x, currentScene.house.y, currentScene.house.type)
+        if (currentScene.house.ammo) {
+            drawAmmoBox(currentScene.house.x, currentScene.house.y + 18)
+            // Ett kort avstånd fungerar som upptagningsradie runt ammunitionslådan.
+            if (distanceBetween(player.x, player.y, currentScene.house.x, currentScene.house.y + 18) < 30) {
+                restockAllAmmo()
+                currentScene.house.ammo = false
+                playSound("ammo")
+            }
+        }
+    }
+
+    // Rita varje vapen som hittats i scenen och plocka upp det när spelaren går nära.
+    for (var pickupIndex = currentScene.weapons.length - 1; pickupIndex >= 0; pickupIndex--) {
+        var pickup = currentScene.weapons[pickupIndex]
+        rectangle(pickup.x - 36, pickup.y - 30, 72, 54, "dimgray")
+        rectangle(pickup.x - 32, pickup.y - 26, 64, 46, "black")
+        var pickupColor = pickup.type === "rocket" || pickup.type === "flame" ? "orange" : pickup.type === "smg" || pickup.type === "rifle" ? "deepskyblue" : pickup.type === "shotgun" || pickup.type === "revolver" ? "gold" : "white"
+        text(pickup.x - 28, pickup.y - 27, 12, weaponName(pickup.type).toUpperCase(), pickupColor)
+        if (pickup.type === "rocket") {
+            drawRocketLauncher(pickup.x, pickup.y)
+        } else if (pickup.type === "smg") {
+            drawSMG(pickup.x, pickup.y)
+        } else if (pickup.type === "shotgun") {
+            drawShotgun(pickup.x, pickup.y)
+        } else if (pickup.type === "revolver") {
+            drawRevolver(pickup.x, pickup.y)
+        } else if (pickup.type === "rifle") {
+            drawRifle(pickup.x, pickup.y)
+        } else if (pickup.type === "flame") {
+            drawFlamethrower(pickup.x, pickup.y)
+        } else {
+            drawPistol(pickup.x, pickup.y)
+        }
+        if (distanceBetween(player.x, player.y, pickup.x, pickup.y) < 25) {
+            player.weapon = pickup.type
+            addAmmo(player.weapon, ammoPickupAmount(player.weapon, false))
+            player.ammo = ammoForWeapon(player.weapon)
+            currentScene.weapons.splice(pickupIndex, 1)
+            playSound("pickup")
+        }
+    }
+
+    // Q byter till nästa vapen som har skott kvar.
+    var switchIsDown = keyboard.q
+    if (switchIsDown && !weaponSwitchWasDown) cycleWeapon()
+    weaponSwitchWasDown = switchIsDown
+
+    // WASD väljer rörelseriktning och uppdaterar vart karaktären och vapnet är vända.
+    var moveX = (keyboard.d ? 1 : 0) - (keyboard.a ? 1 : 0)
+    var moveY = (keyboard.s ? 1 : 0) - (keyboard.w ? 1 : 0)
+    var isMoving = moveX !== 0 || moveY !== 0
+
+    if (isMoving) {
+        // Dela varje rörelsekomponent med längden så riktningen blir en enhetsvektor.
+        var moveLength = Math.sqrt(moveX * moveX + moveY * moveY)
+        aimX = moveX / moveLength
+        aimY = moveY / moveLength
+
+        // Välj riktning efter den axel som har störst rörelse; vid diagonal gång behålls rimlig riktning.
+        if (Math.abs(moveX) > Math.abs(moveY)) {
+            player.facing = moveX < 0 ? "left" : "right"
+        } else if (Math.abs(moveY) > Math.abs(moveX)) {
+            player.facing = moveY < 0 ? "up" : "down"
+        } else if (player.facing === "left" && moveX < 0 || player.facing === "right" && moveX > 0) {
+            player.facing = moveX < 0 ? "left" : "right"
+        } else {
+            player.facing = moveY < 0 ? "up" : "down"
+        }
+    }
+
+    // När uthålligheten tar slut måste den återhämta sig till hälften innan sprinten låses upp.
+    var isSprinting = keyboard.shift && isMoving && !player.sprintLocked && player.stamina > 0
+    var movementSpeed = isSprinting ? player.sprintSpeed : player.speed
+    // Ljud spelas bara vid övergången från vanlig gång till sprint.
+    if (isSprinting && !wasSprinting) {
+        playSound("sprint")
+    }
+    wasSprinting = isSprinting
+    if (isMoving && frameCount - lastFootstepFrame >= (isSprinting ? 10 : 20)) {
+        playSound("footstep")
+        lastFootstepFrame = frameCount
+    }
+    if (isSprinting) {
+        // Stamina begränsas till 0–100 och tömning låser sprint tills halva nivån återställts.
+        player.stamina = Math.max(0, player.stamina - 0.8)
+        if (player.stamina === 0) {
+            player.sprintLocked = true
+            playSound("staminaEmpty")
+        }
+    } else {
+        player.stamina = Math.min(player.maxStamina, player.stamina + 0.35)
+        if (player.sprintLocked && player.stamina >= player.maxStamina / 2) {
+            player.sprintLocked = false
+        }
+    }
+
+    // Samma hastighet används i alla riktningar, även när spelaren går diagonalt.
+    if (isMoving) {
+        // Multiplicera den normaliserade riktningen med farten för att få förflyttning per bildruta.
+        var speedX = moveX / moveLength * movementSpeed
+        var speedY = moveY / moveLength * movementSpeed
+        player.x += speedX
+        player.y += speedY
+    }
+
+    // Den långa vägbarriären stoppar spelaren från att gå ut på vägen.
+    if (scene.y === 0 && player.y < 170) {
+        player.y = 170
+    }
+
+    // Världen slutar vid x = -5 och x = 5; håll spelaren innanför metallstängslet.
+    if (scene.x === 5 && player.x > totalWidth - 42) {
+        player.x = totalWidth - 42
+    }
+    if (scene.x === -5 && player.x < 42) {
+        player.x = 42
+    }
+
+    // Byt scen när spelaren passerar en fri kant och rensa projektiler från förra scenen.
+    if (player.x > totalWidth) {
+        player.x = 0
+        scene.x += 1
+        bullets = []
+        playSound("scene")
+    }
+    if (player.x < 0) {
+        player.x = totalWidth - 1
+        scene.x -= 1
+        bullets = []
+        playSound("scene")
+    }
+    if (player.y < 0 && scene.y < 30) {
+        player.y = totalHeight
+        scene.y += 1
+        bullets = []
+        playSound("scene")
+    } else if (player.y < 0) {
+        player.y = 1
+    }
+    if (player.y > totalHeight && scene.y > -30) {
+        player.y = 1
+        scene.y -= 1
+        bullets = []
+        playSound("scene")
+    } else if (player.y > totalHeight) {
+        player.y = totalHeight - 1
+    }
+
+    // SMG och eldkastare kan skjuta automatiskt; övriga vapen skjuter ett skott per tryck.
+    var spaceIsDown = keyboard.space
+    // Begränsa automatvapen till en salva var några bildrutor så ammunitionen inte töms direkt.
+    var automaticInterval = player.weapon === "flame" ? 4 : 6
+    var isAutomaticWeapon = player.weapon === "smg" || player.weapon === "flame"
+    var shouldFire = isAutomaticWeapon ? spaceIsDown && frameCount % automaticInterval === 0 : spaceIsDown && !spaceWasDown
+    if (player.weapon && player.ammo > 0 && shouldFire) {
+        var firingWeapon = player.weapon
+        playSound(firingWeapon)
+        // Hagelgeväret sprider fem skott; eldkastaren skjuter en kort stråle av eld.
+        var shotCount = player.weapon === "shotgun" ? 5 : 1
+        // Vinkel beräknas från den sparade siktvektorn.
+        var aimAngle = Math.atan2(aimY, aimX)
+        for (var shot = 0; shot < shotCount; shot++) {
+            // Hagel får fem närliggande vinklar; övriga projektiler går rakt.
+            var spread = shotCount === 1 ? 0 : (shot - 2) * 0.16
+            var shotAngle = aimAngle + spread
+            // Gevär är snabba och precisa; raketer är långsamma och eld når bara en kort bit.
+            var projectileSpeed = firingWeapon === "rocket" ? 7 : firingWeapon === "rifle" ? 13 : firingWeapon === "flame" ? 6 : 10
+            bullets.push({
+                x: player.x + Math.cos(shotAngle) * 24,
+                y: player.y + Math.sin(shotAngle) * 24,
+                speedX: Math.cos(shotAngle) * projectileSpeed,
+                speedY: Math.sin(shotAngle) * projectileSpeed,
+                damage: firingWeapon === "rocket" ? 8 : firingWeapon === "shotgun" || firingWeapon === "revolver" ? 2 : firingWeapon === "rifle" ? 3 : firingWeapon === "flame" ? 2 : 1,
+                weapon: firingWeapon,
+                // Räckvidden används senare för att ta bort skott som färdats långt.
+                distance: 0
+            })
+        }
+        // Varje avfyrning använder en patron, oavsett antal hagelgevärspellets.
+        player.ammo -= 1
+        // Uppdatera rätt vapenförråd efter varje skott.
+        setWeaponAmmo(firingWeapon, player.ammo)
+        if (player.ammo === 0) {
+            switchToAvailableWeapon()
+        }
+    }
+    // Nästa bildruta jämförs med detta värde för att upptäcka när mellanslag släppts.
+    spaceWasDown = spaceIsDown
+
+    // Flytta och rita projektilerna, upptäck träffar och ta bort skott som försvinner.
+    for (var bulletIndex = bullets.length - 1; bulletIndex >= 0; bulletIndex--) {
+        var bullet = bullets[bulletIndex]
+        // Hastighetskomponenterna flyttar projektilen; distansen ökas för räckviddskontrollen.
+        bullet.x += bullet.speedX
+        bullet.y += bullet.speedY
+        bullet.distance += 10
+        if (bullet.weapon === "rocket") {
+            rectangle(bullet.x - 7, bullet.y - 5, 14, 10, "orange")
+            rectangle(bullet.x - 3, bullet.y - 3, 8, 6, "yellow")
+        } else if (bullet.weapon === "flame") {
+            rectangle(bullet.x - 9, bullet.y - 8, 18, 16, "darkred")
+            rectangle(bullet.x - 6, bullet.y - 5, 12, 10, "orange")
+            rectangle(bullet.x - 3, bullet.y - 3, 6, 6, "yellow")
+        } else if (bullet.weapon === "rifle" || bullet.weapon === "revolver") {
+            rectangle(bullet.x - 5, bullet.y - 3, 10, 6, bullet.weapon === "rifle" ? "deepskyblue" : "gold")
+        } else {
+            rectangle(bullet.x - 3, bullet.y - 3, 7, 7, "yellow")
+            rectangle(bullet.x - 1, bullet.y - 1, 3, 3, "orange")
+        }
+
+        var hitEnemy = -1
+        var enemyHitRadius = bullet.weapon === "flame" ? 30 : 14
+        // Leta efter en fiende inom träffradien och spara dess index i fiendelistan.
+        for (var enemyIndex = 0; enemyIndex < currentScene.enemies.length; enemyIndex++) {
+            var target = currentScene.enemies[enemyIndex]
+            if (distanceBetween(bullet.x, bullet.y, target.x, target.y - 8) < enemyHitRadius) {
+                hitEnemy = enemyIndex
+                break
+            }
+        }
+
+        // Bossens kropp testas separat eftersom den inte ligger i listan med vanliga fiender.
+        var bossHitRadius = currentScene.boss && currentScene.boss.type === 3 ? 92 : bullet.weapon === "flame" ? 55 : 38
+        var hitBoss = currentScene.boss && currentScene.boss.hp > 0 &&
+            distanceBetween(bullet.x, bullet.y, currentScene.boss.x, currentScene.boss.y - 15) < bossHitRadius
+
+        if (hitEnemy >= 0) {
+            if (bullet.weapon === "rocket") {
+                // Raketen exploderar vid träff och skadar alla zombier nära smällen.
+                playSound("explosion")
+                rectangle(bullet.x - 40, bullet.y - 40, 80, 80, "darkred")
+                rectangle(bullet.x - 25, bullet.y - 25, 50, 50, "orange")
+                // Baklängesloop gör att borttagning ur arrayen inte hoppar över nästa zombie.
+                for (var blastIndex = currentScene.enemies.length - 1; blastIndex >= 0; blastIndex--) {
+                    var blastTarget = currentScene.enemies[blastIndex]
+                    if (distanceBetween(bullet.x, bullet.y, blastTarget.x, blastTarget.y - 8) < 58) {
+                        if (damageZombie(currentScene, blastTarget, bullet.damage)) {
+                            currentScene.enemies.splice(blastIndex, 1)
+                        }
+                    }
+                }
+            } else {
+                // Vanliga kulor och hagel skadar en zombie per projektil.
+                var hitTarget = currentScene.enemies[hitEnemy]
+                if (damageZombie(currentScene, hitTarget, bullet.damage)) {
+                    // Ta bort besegrade zombier ur listan, annars fortsätter de jaga.
+                    currentScene.enemies.splice(hitEnemy, 1)
+                }
+            }
+            // Ett skott försvinner så fort det har träffat en fiende.
+            bullets.splice(bulletIndex, 1)
+        } else if (hitBoss) {
+            if (bullet.weapon === "rocket") {
+                // Raketexplosionen skadar både bossen och närliggande minioner.
+                playSound("explosion")
+                rectangle(bullet.x - 40, bullet.y - 40, 80, 80, "darkred")
+                rectangle(bullet.x - 25, bullet.y - 25, 50, 50, "orange")
+                damageBoss(currentScene, bullet.damage * 2)
+                // Raketens stötvåg kan även skada småfiender runt bossen.
+                for (var bossBlastIndex = currentScene.enemies.length - 1; bossBlastIndex >= 0; bossBlastIndex--) {
+                    var bossBlastTarget = currentScene.enemies[bossBlastIndex]
+                    if (distanceBetween(bullet.x, bullet.y, bossBlastTarget.x, bossBlastTarget.y - 8) < 58) {
+                        if (damageZombie(currentScene, bossBlastTarget, bullet.damage)) {
+                            currentScene.enemies.splice(bossBlastIndex, 1)
+                        }
+                    }
+                }
+            } else {
+                damageBoss(currentScene, bullet.damage)
+            }
+            bullets.splice(bulletIndex, 1)
+        // Ta bort missade skott efter 500 pixlar eller när de lämnar skärmens gränser.
+        } else if (bullet.distance > (bullet.weapon === "flame" ? 125 : 500) || bullet.x < 0 || bullet.x > totalWidth || bullet.y < 0 || bullet.y > totalHeight) {
+            bullets.splice(bulletIndex, 1)
+        }
+    }
+
+    // Uppdatera gröna fiendeskott som skickats mot spelaren.
+    for (var enemyShotIndex = currentScene.enemyShots.length - 1; enemyShotIndex >= 0; enemyShotIndex--) {
+        var enemyShot = currentScene.enemyShots[enemyShotIndex]
+        enemyShot.x += enemyShot.speedX
+        enemyShot.y += enemyShot.speedY
+        enemyShot.distance += 1
+        rectangle(enemyShot.x - 6, enemyShot.y - 6, 12, 12, "darkred")
+        rectangle(enemyShot.x - 3, enemyShot.y - 3, 6, 6, enemyShot.color)
+        if (distanceBetween(player.x, player.y, enemyShot.x, enemyShot.y) < player.size + 6) {
+            loseLife(currentScene)
+            currentScene.enemyShots.splice(enemyShotIndex, 1)
+        } else if (enemyShot.distance > 600 || enemyShot.x < 0 || enemyShot.x > totalWidth || enemyShot.y < 0 || enemyShot.y > totalHeight) {
+            currentScene.enemyShots.splice(enemyShotIndex, 1)
+        }
+    }
+
+    // Rita spelaren framför scenens objekt.
+    drawPlayer()
+
+    // Rita zombier, låt dem jaga spelaren och avsluta spelet vid kontakt.
+    for (var k = 0; k < currentScene.enemies.length; k++) {
+        var enemy = currentScene.enemies[k]
+        drawEnemy(enemy)
+
+        // Ändra x och y var för sig så zombien stegvis rör sig mot spelarens position.
+        if (enemy.x < player.x) enemy.x += enemy.speed
+        if (enemy.x > player.x) enemy.x -= enemy.speed
+        if (enemy.y < player.y) enemy.y += enemy.speed
+        if (enemy.y > player.y) enemy.y -= enemy.speed
+
+        // Spottaren försöker hålla avstånd och skjuter en giftprojektil med några sekunders mellanrum.
+        if (enemy.type === 7) {
+            var spitterDistance = distanceBetween(enemy.x, enemy.y, player.x, player.y)
+            if (spitterDistance < 190) {
+                if (enemy.x < player.x) enemy.x -= enemy.speed * 1.5
+                if (enemy.x > player.x) enemy.x += enemy.speed * 1.5
+                if (enemy.y < player.y) enemy.y -= enemy.speed * 1.5
+                if (enemy.y > player.y) enemy.y += enemy.speed * 1.5
+            }
+            if (frameCount >= enemy.nextShotFrame) {
+                addEnemyShot(currentScene, enemy.x, enemy.y - 10, player.x, player.y, 3, 1, 0, "lime")
+                enemy.nextShotFrame = frameCount + updatesPerSecond * 4
+            }
+        }
+
+        if (distanceBetween(player.x, player.y, enemy.x, enemy.y - 8) < player.size + 8) {
+            loseLife(currentScene)
+        }
+    }
+
+    // Bossarna har egna angrepp; finalbossen växlar mellan marksprängning och projektilsalva.
+    if (currentScene.boss && currentScene.boss.hp > 0) {
+        var boss = currentScene.boss
+        var bossEnraged = boss.hp <= boss.maxHp / 2
+
+        if (boss.type === 0) {
+            if (!boss.isDashing && !boss.warningPlayed && boss.nextDashFrame - frameCount <= updatesPerSecond) {
+                // Varningsljudet spelas en gång när det återstår högst en sekund.
+                playSound("bossWarning")
+                boss.warningPlayed = true
+            }
+            if (!boss.isDashing && frameCount >= boss.nextDashFrame) {
+                // Normalisera riktningen mot spelaren för att få en jämn dash oavsett avstånd.
+                var dashDX = player.x - boss.x
+                var dashDY = player.y - boss.y
+                var dashLength = Math.sqrt(dashDX * dashDX + dashDY * dashDY) || 1
+                boss.dashX = dashDX / dashLength
+                boss.dashY = dashDY / dashLength
+                boss.isDashing = true
+                boss.dashEndFrame = frameCount + Math.floor(updatesPerSecond * 1.1)
+                boss.nextDashFrame = frameCount + updatesPerSecond * (bossEnraged ? 4 : 6)
+                boss.warningPlayed = false
+                playSound("bossDash")
+            }
+        } else if (boss.type === 1) {
+            // Giftspottern varnar före skottet; i andra fasen skjuter den en salva.
+            if (!boss.warningPlayed && boss.nextShotFrame - frameCount <= updatesPerSecond) {
+                playSound("bossWarning")
+                boss.warningPlayed = true
+            }
+            if (frameCount >= boss.nextShotFrame) {
+                var shotSpread = bossEnraged ? 0.18 : 0
+                var shotCount = bossEnraged ? 3 : 1
+                for (var bossShot = 0; bossShot < shotCount; bossShot++) {
+                    var spread = shotCount === 1 ? 0 : (bossShot - 1) * shotSpread
+                    addEnemyShot(currentScene, boss.x, boss.y - 12, player.x, player.y, 3.5, 1, spread, "orange")
+                }
+                boss.nextShotFrame = frameCount + updatesPerSecond * (bossEnraged ? 3 : 4)
+                boss.warningPlayed = false
+                playSound("bossDash")
+            }
+        } else if (boss.type === 2) {
+            // Markslagarens attackplats låses in under varningen så spelaren hinner flytta sig.
+            var slamWarningDuration = Math.floor(updatesPerSecond * 1.4)
+            if (boss.warningStartFrame === 0 && boss.nextDashFrame - frameCount <= slamWarningDuration) {
+                boss.warningStartFrame = frameCount
+                boss.attackX = player.x
+                boss.attackY = player.y
+                boss.slamHit = false
+                playSound("bossWarning")
+            }
+            if (boss.warningStartFrame > 0 && !boss.slamHit) {
+                var warningSize = 52 + Math.floor((frameCount - boss.warningStartFrame) / 3) % 24
+                rectangle(boss.attackX - warningSize, boss.attackY - warningSize, warningSize * 2, 5, "orange")
+                rectangle(boss.attackX - warningSize, boss.attackY + warningSize - 5, warningSize * 2, 5, "orange")
+                rectangle(boss.attackX - warningSize, boss.attackY - warningSize, 5, warningSize * 2, "orange")
+                rectangle(boss.attackX + warningSize - 5, boss.attackY - warningSize, 5, warningSize * 2, "orange")
+            }
+            if (frameCount >= boss.nextDashFrame && !boss.slamHit) {
+                playSound("explosion")
+                rectangle(boss.attackX - 72, boss.attackY - 72, 144, 144, "darkred")
+                rectangle(boss.attackX - 48, boss.attackY - 48, 96, 96, "orange")
+                if (distanceBetween(player.x, player.y, boss.attackX, boss.attackY) < 78 && !gameOver) {
+                    loseLife(currentScene)
+                }
+                boss.slamHit = true
+                boss.warningStartFrame = 0
+                boss.nextDashFrame = frameCount + updatesPerSecond * (bossEnraged ? 3.5 : 5)
+            }
+        } else {
+            // Finalbossen växlar mellan en stor markerad smäll och en bred salva av eld.
+            if (!boss.warningPlayed && boss.nextShotFrame - frameCount <= updatesPerSecond) {
+                playSound("bossWarning")
+                boss.warningPlayed = true
+            }
+            if (frameCount >= boss.nextShotFrame) {
+                var finalShotCount = bossEnraged ? 7 : 5
+                for (var finalShot = 0; finalShot < finalShotCount; finalShot++) {
+                    var finalSpread = (finalShot - (finalShotCount - 1) / 2) * (bossEnraged ? 0.16 : 0.12)
+                    addEnemyShot(currentScene, boss.x, boss.y - 20, player.x, player.y, 4, 1, finalSpread, "orange")
+                }
+                boss.nextShotFrame = frameCount + updatesPerSecond * (bossEnraged ? 2.5 : 4)
+                boss.warningPlayed = false
+                playSound("bossDash")
+            }
+
+            var finalSlamWarning = Math.floor(updatesPerSecond * 1.8)
+            if (boss.warningStartFrame === 0 && boss.nextDashFrame - frameCount <= finalSlamWarning) {
+                boss.warningStartFrame = frameCount
+                boss.attackX = player.x
+                boss.attackY = player.y
+                boss.slamHit = false
+                playSound("bossWarning")
+            }
+            if (boss.warningStartFrame > 0 && !boss.slamHit) {
+                var finalWarningSize = 74 + Math.floor((frameCount - boss.warningStartFrame) / 3) % 28
+                rectangle(boss.attackX - finalWarningSize, boss.attackY - finalWarningSize, finalWarningSize * 2, 6, "orange")
+                rectangle(boss.attackX - finalWarningSize, boss.attackY + finalWarningSize - 6, finalWarningSize * 2, 6, "orange")
+                rectangle(boss.attackX - finalWarningSize, boss.attackY - finalWarningSize, 6, finalWarningSize * 2, "orange")
+                rectangle(boss.attackX + finalWarningSize - 6, boss.attackY - finalWarningSize, 6, finalWarningSize * 2, "orange")
+            }
+            if (frameCount >= boss.nextDashFrame && !boss.slamHit) {
+                playSound("explosion")
+                rectangle(boss.attackX - 120, boss.attackY - 120, 240, 240, "darkred")
+                rectangle(boss.attackX - 82, boss.attackY - 82, 164, 164, "orange")
+                if (distanceBetween(player.x, player.y, boss.attackX, boss.attackY) < 125 && !gameOver) {
+                    loseLife(currentScene)
+                }
+                boss.slamHit = true
+                boss.warningStartFrame = 0
+                boss.nextDashFrame = frameCount + updatesPerSecond * (bossEnraged ? 3 : 5)
+            }
+        }
+
+        drawBoss(boss)
+        if (boss.type === 0 && boss.isDashing) {
+            // Under dash används den låsta riktningen; därefter återgår bossen till långsam jakt.
+            boss.x += boss.dashX * 10
+            boss.y += boss.dashY * 10
+            if (frameCount >= boss.dashEndFrame) {
+                boss.isDashing = false
+            }
+        } else {
+            var bossDistance = distanceBetween(boss.x, boss.y, player.x, player.y)
+            var chaseSpeed = boss.type === 2 ? 0.4 : boss.type === 3 ? (bossEnraged ? 0.65 : 0.42) : bossEnraged ? 0.8 : 0.55
+            if (boss.type === 1 && bossDistance < 180) chaseSpeed = -0.5
+            else if (boss.type === 1 && bossDistance < 300) chaseSpeed = 0
+            if (boss.x < player.x) boss.x += chaseSpeed
+            if (boss.x > player.x) boss.x -= chaseSpeed
+            if (boss.y < player.y) boss.y += chaseSpeed
+            if (boss.y > player.y) boss.y -= chaseSpeed
+        }
+
+        var bossTouchRadius = boss.type === 3 ? 64 : 24
+        if (distanceBetween(player.x, player.y, boss.x, boss.y - 8) < player.size + bossTouchRadius) {
+            loseLife(currentScene)
+        }
+    }
+
+    // HUD-panelen flyttas åt höger så minikartan får en egen plats i vänstra hörnet.
+    drawScreenFlicker()
+
+    rectangle(102, 10, 412, 151, "dimgray")
+    rectangle(105, 13, 406, 145, "black")
+    rectangle(105, 13, 5, 145, "darkred")
+    text(117, 32, 20, "NATTENS ÖVERLEVARE", "orange")
+    text(431, 32, 16, "LIV: " + player.lives + "/3", player.lives > 1 ? "lime" : "red")
+    text(117, 53, 15, "SCEN: " + scene.x + ", " + scene.y, "deepskyblue")
+    text(330, 53, 15, "POÄNG: " + score, "white")
+    // Korruption visas i procent och når 100 % vid finalnivån.
+    var corruptionPercent = Math.floor(Math.min(30, Math.abs(scene.y)) / 30 * 100)
+    text(117, 75, 15, "CORRUPTION: " + corruptionPercent + "%", corruptionPercent >= 80 ? "red" : "white")
+    rectangle(117, 81, 270, 7, "dimgray")
+    rectangle(119, 83, 266 * corruptionPercent / 100, 3, corruptionPercent >= 80 ? "red" : "maroon")
+    text(117, 105, 13, "WASD RÖR/SIKTA   Q BYT VAPEN", "lightgray")
+    text(117, 123, 13, "MELLANSLAG SKJUT   SHIFT SPRING", "lightgray")
+    var hudWeaponColor = player.weapon === "rocket" || player.weapon === "flame" ? "orange" : player.weapon === "smg" || player.weapon === "rifle" ? "deepskyblue" : player.weapon === "shotgun" || player.weapon === "revolver" ? "gold" : "white"
+    text(117, 147, 16, player.weapon ? weaponName(player.weapon).toUpperCase() : "INGET VAPEN", hudWeaponColor)
+    text(300, 147, 16, player.weapon ? "AMMO: " + player.ammo : "HITTA ETT VAPEN", player.ammo > 0 ? "lime" : "red")
+    // Karta visar bara scener som redan skapats/besökts; röd ruta är boss och orange är aktuell scen.
+    drawVisitedMap()
+    rectangle(totalWidth - 205, totalHeight - 56, 190, 48, "dimgray")
+    rectangle(totalWidth - 201, totalHeight - 52, 182, 40, "black")
+    text(totalWidth - 191, totalHeight - 34, 15, player.sprintLocked ? "SPRINT LÅST" : "STAMINA", player.sprintLocked ? "red" : "deepskyblue")
+    rectangle(totalWidth - 191, totalHeight - 27, 170, 10, "dimgray")
+    rectangle(totalWidth - 188, totalHeight - 24, 164 * player.stamina / player.maxStamina, 4, player.stamina > 50 && !player.sprintLocked ? "deepskyblue" : "red")
+    if (currentScene.boss && currentScene.boss.hp > 0) {
+        // Omvandla återstående bildrutor till sekunder för bossens nedräkning.
+        var bossTimerFrame = currentScene.boss.type === 1 ? currentScene.boss.nextShotFrame : currentScene.boss.nextDashFrame
+        var bossTimer = Math.max(0, Math.ceil((bossTimerFrame - frameCount) / updatesPerSecond))
+        var bossStatus = currentScene.boss.type === 1 ? "GIFT OM: " + bossTimer + " SEK" : currentScene.boss.type === 2 ? "MARKSLAG OM: " + bossTimer + " SEK" : currentScene.boss.type === 3 ? "ATTACK OM: " + bossTimer + " SEK" : currentScene.boss.isDashing ? "BOSS DASHAR!" : "DASH OM: " + bossTimer + " SEK"
+        text(totalWidth - 190, 35, 18, bossName(currentScene.boss.type), currentScene.boss.type === 3 ? "orange" : "red")
+        text(totalWidth - 190, 57, 16, bossStatus, "orange")
+    }
+    drawHitOverlay()
+
+}
+  </script>
+</body>
+</html>

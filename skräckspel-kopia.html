@@ -9,6 +9,12 @@
   <script src="http://koda.nu/simple.js">
 // Spelet uppdateras 60 gånger per sekund.
 updatesPerSecond = 60
+// HUD:en tar denna del av skärmen; spelvärlden och scenbyten slutar ovanför den.
+var HUD_HEIGHT = 132
+
+function playfieldBottom() {
+    return totalHeight - HUD_HEIGHT
+}
 
 // Spelarens koordinat i världen: varje gång spelaren går utanför kanten byts scen.
 var scene = {
@@ -20,7 +26,7 @@ var scene = {
 // Varje vapentyp har ett eget ammunitionsförråd som finns kvar vid vapenbyte.
 var player = {
     x: totalWidth / 2,
-    y: Math.min(totalHeight - 100, 230),
+    y: Math.min(playfieldBottom() - 35, 230),
     size: 15,
     speed: 4,
     sprintSpeed: 7,
@@ -38,6 +44,8 @@ var player = {
     flameAmmo: 0,
     facing: "down",
     lives: 3,
+    shields: 0,
+    killsTowardReward: 0,
     invulnerableUntil: 0,
     hitFrame: -1000
 }
@@ -61,6 +69,8 @@ var deathLevel = 0
 var spaceWasDown = false
 // Kommer ihåg Q-knappens läge så vapnen bara byts en gång per knapptryckning.
 var weaponSwitchWasDown = false
+// Sparar en tryckt vapenslot tills huvudloopen kan välja vapnet.
+var pendingHotbarSelection = -1
 // Senaste siktade riktning; den sparas när spelaren slutar röra sig.
 var aimX = 1
 var aimY = 0
@@ -97,6 +107,16 @@ function unlockAudio() {
 
 // Lyssna efter användarens första tangenttryck så webbläsarens ljudspärr släpps.
 document.addEventListener("keydown", unlockAudio)
+// Läs sifferknapparna direkt från webbläsaren, oberoende av Simple.js tangentbordsobjekt.
+document.addEventListener("keydown", function (event) {
+    var keyCode = event.code || ""
+    if (keyCode.indexOf("Digit") === 0 || keyCode.indexOf("Numpad") === 0) {
+        var slotNumber = Number(keyCode.replace("Digit", "").replace("Numpad", ""))
+        if (slotNumber >= 1 && slotNumber <= 7) {
+            pendingHotbarSelection = slotNumber - 1
+        }
+    }
+})
 
 // Spelar en kort ton med mjuk volymkurva och valfri tonhöjdsändring.
 function playTone(frequency, duration, wave, volume, endFrequency) {
@@ -232,16 +252,16 @@ function playBackgroundMusic(depth, finalBossMusic) {
         lastMusicBeat = -1
         lastMusicMode = musicMode
     }
-    var beatFrames = finalBossMusic ? 24 : Math.max(20, 46 - Math.min(20, levelDepth))
+    var beatFrames = finalBossMusic ? 18 : Math.max(24, 54 - Math.min(24, levelDepth))
     var beat = Math.floor(frameCount / beatFrames)
     if (beat === lastMusicBeat) return
     lastMusicBeat = beat
 
     // En långsam mollslinga ger musiken ett återkommande, olycksbådande tema.
-    var bassNotes = finalBossMusic ? [55, 58.27, 55, 73.42, 65.41, 58.27, 49, 65.41] : [73.42, 87.31, 65.41, 98, 73.42, 58.27, 87.31, 65.41]
-    var melodyNotes = finalBossMusic ? [110, 116.54, 98, 123.47, 110, 130.81, 98, 146.83] : [220, 261.63, 196, 246.94, 174.61, 220, 164.81, 196]
+    var bassNotes = finalBossMusic ? [49, 55, 49, 65.41, 58.27, 49, 46.25, 58.27] : [65.41, 73.42, 58.27, 65.41, 55, 73.42, 58.27, 49]
+    var melodyNotes = finalBossMusic ? [98, 103.83, 110, 82.41, 98, 73.42, 110, 92.5] : [196, 174.61, 207.65, 164.81, 185, 146.83, 174.61, 155.56]
     var noteIndex = beat % bassNotes.length
-    var glitchLevel = Math.min(0.68, levelDepth * 0.035)
+    var glitchLevel = Math.min(0.58, levelDepth * 0.025)
     var bassFrequency = bassNotes[noteIndex]
     var melodyFrequency = melodyNotes[noteIndex]
 
@@ -250,16 +270,19 @@ function playBackgroundMusic(depth, finalBossMusic) {
         melodyFrequency *= Math.random() < 0.5 ? 1.414 : 0.943
     }
 
-    playTone(bassFrequency, beatFrames / updatesPerSecond * (finalBossMusic ? 1.1 : 0.9), finalBossMusic || levelDepth >= 5 ? "sawtooth" : "triangle", finalBossMusic ? 0.065 : 0.025, bassFrequency * (finalBossMusic ? 0.82 : 0.96))
-    if (beat % 2 === 0) {
+    playTone(bassFrequency, beatFrames / updatesPerSecond * (finalBossMusic ? 0.72 : 0.82), finalBossMusic || levelDepth >= 8 ? "sawtooth" : "triangle", finalBossMusic ? 0.07 : 0.024, bassFrequency * (finalBossMusic ? 0.72 : 0.9))
+    if (beat % (finalBossMusic ? 2 : 3) !== 2) {
         var melodyWave = finalBossMusic || levelDepth >= 8 ? "square" : "triangle"
-        playTone(melodyFrequency, beatFrames / updatesPerSecond * 0.65, melodyWave, finalBossMusic ? 0.035 : 0.018 + Math.min(0.01, levelDepth * 0.0005), melodyFrequency * (finalBossMusic || levelDepth >= 8 ? 0.78 : 0.98))
+        playTone(melodyFrequency, beatFrames / updatesPerSecond * 0.48, melodyWave, finalBossMusic ? 0.032 : 0.016 + Math.min(0.008, levelDepth * 0.0004), melodyFrequency * (finalBossMusic ? 1.12 : 0.94))
+    }
+    if (beat % (finalBossMusic ? 4 : 6) === 0) {
+        playTone(finalBossMusic ? 38 : 43.65, 0.12, "sine", finalBossMusic ? 0.08 : 0.045, finalBossMusic ? 26 : 32.7)
     }
 
     // Korta brus och avbrutna höga toner låter som störningar i en trasig radiosignal.
-    if (Math.random() < (finalBossMusic ? 0.46 : 0.035 + glitchLevel * 0.72)) {
-        var staticDuration = 0.025 + Math.random() * (finalBossMusic ? 0.09 : 0.025 + glitchLevel * 0.07)
-        playNoise(staticDuration, finalBossMusic ? 0.035 : 0.012 + glitchLevel * 0.025, 700 + Math.random() * (1800 + levelDepth * 180))
+    if (Math.random() < (finalBossMusic ? 0.28 : 0.02 + glitchLevel * 0.52)) {
+        var staticDuration = 0.02 + Math.random() * (finalBossMusic ? 0.07 : 0.02 + glitchLevel * 0.05)
+        playNoise(staticDuration, finalBossMusic ? 0.025 : 0.009 + glitchLevel * 0.02, 500 + Math.random() * (1400 + levelDepth * 120))
         if (levelDepth >= 5 && Math.random() < glitchLevel) {
             var glitchFrequency = 260 + Math.random() * 900
             playTone(glitchFrequency, staticDuration, "square", 0.012 + glitchLevel * 0.018, glitchFrequency * (Math.random() < 0.5 ? 0.5 : 1.8))
@@ -270,7 +293,11 @@ function playBackgroundMusic(depth, finalBossMusic) {
 // Tar ett liv, lämnar blod i scenen och ger kort osårbarhet så en kontakt inte tömmer alla liv.
 function loseLife(currentScene) {
     if (gameOver || victory || frameCount < player.invulnerableUntil) return false
-    player.lives = Math.max(0, player.lives - 1)
+    if (player.shields > 0) {
+        player.shields -= 1
+    } else {
+        player.lives = Math.max(0, player.lives - 1)
+    }
     player.hitFrame = frameCount
     player.invulnerableUntil = frameCount + updatesPerSecond * 1.25
     addBloodSplatter(currentScene, player.x, player.y, true)
@@ -284,11 +311,11 @@ function triggerGameOver() {
     if (gameOver || victory) return
     gameOver = true
     deathFrame = frameCount
-    deathLevel = Math.min(30, Math.abs(scene.y))
+    deathLevel = Math.min(20, Math.abs(scene.y))
     playSound("gameOver")
 }
 
-// Avslutar spelet först när den sista bossen på nivå 30 besegras.
+// Avslutar spelet först när den sista bossen på nivån x:0, y:20 besegras.
 function triggerVictory() {
     if (victory || gameOver) return
     victory = true
@@ -307,12 +334,35 @@ function distanceBetween(x1, y1, x2, y2) {
 
 // Väljer en slumpmässig position innanför scenens kanter och under vägbarriären.
 function randomPosition() {
+    var fieldBottom = playfieldBottom()
     return {
         // Lämna en liten kantmarginal så saker inte hamnar utanför skärmen.
         x: 35 + Math.random() * (totalWidth - 70),
         // På startnivån placeras saker nedanför vägen; på andra nivåer används större delen av skärmen.
-        y: scene.y === 0 ? 175 + Math.random() * (totalHeight - 210) : 45 + Math.random() * (totalHeight - 90)
+        y: scene.y === 0 ? 175 + Math.random() * Math.max(1, fieldBottom - 210) : 45 + Math.random() * Math.max(1, fieldBottom - 90)
     }
+}
+
+// Håller fiender långt från alla scenkanter så de inte väntar vid spelarens ingång.
+function randomEnemyPosition() {
+    var marginX = Math.min(115, totalWidth / 4)
+    var fieldBottom = playfieldBottom()
+    var marginY = Math.min(100, fieldBottom / 4)
+    var bestPosition = { x: totalWidth / 2, y: fieldBottom / 2 }
+    var bestDistance = -1
+    for (var attempt = 0; attempt < 40; attempt++) {
+        var candidate = {
+            x: marginX + Math.random() * (totalWidth - marginX * 2),
+            y: marginY + Math.random() * (fieldBottom - marginY * 2)
+        }
+        var entryDistance = distanceBetween(candidate.x, candidate.y, player.x, player.y)
+        if (entryDistance > bestDistance) {
+            bestPosition = candidate
+            bestDistance = entryDistance
+        }
+        if (entryDistance >= 170) return candidate
+    }
+    return bestPosition
 }
 
 // Välj loot efter avstånd: raketkastare och SMG låses upp längre från start.
@@ -404,7 +454,7 @@ function makeScene() {
                 y: groupCenter.y + (Math.random() - 0.5) * 70,
                 type: groupType
             }
-            if (tree.x > 20 && tree.x < totalWidth - 20 && tree.y > 20 && tree.y < totalHeight - 20 &&
+            if (tree.x > 20 && tree.x < totalWidth - 20 && tree.y > 20 && tree.y < playfieldBottom() - 20 &&
                 distanceBetween(tree.x, tree.y, totalWidth / 2, totalHeight / 2) > 65 &&
                 distanceBetween(tree.x, tree.y, player.x, player.y) > 55) {
                 content.trees.push(tree)
@@ -412,7 +462,8 @@ function makeScene() {
         }
     }
 
-    // Svårighetsgrad, bossnivåer och vapen räknas bara längs y-axeln.
+    var isFinalBossScene = scene.x === 0 && scene.y === 20
+    // Svårighetsgrad och vapen räknas längs y-axeln.
     // Bestäm bosschansen en gång per y-nivå så sidledsscener delar samma resultat.
     if (bossDepths[depth] === undefined) {
         var nearbyBoss = false
@@ -422,25 +473,20 @@ function makeScene() {
                 nearbyBoss = true
             }
         }
-            // Nivå 30 är alltid finalboss; andra bossar behåller den slumpade chansen.
-            bossDepths[depth] = depth === 30 || depth >= 5 && !nearbyBoss && Math.random() < 0.18
+        // Nivå 20 är reserverad för finalbossen; övriga bossnivåer väljs slumpmässigt.
+        bossDepths[depth] = depth === 20 || depth >= 5 && !nearbyBoss && Math.random() < 0.18
     }
-    content.bossLevel = bossDepths[depth]
-        // Finalbossarenan får bara bossen; övriga scener följer samma fiendesvårighet som tidigare.
-        var enemyCount = depth === 0 || depth === 30 ? 0 : content.bossLevel ? 1 + Math.floor(Math.random() * 2) : Math.min(16, 2 + depth + Math.floor(Math.random() * 3))
+    content.bossLevel = isFinalBossScene || depth !== 20 && bossDepths[depth]
+    // Finalbossarenan får bara bossen; övriga scener följer samma fiendesvårighet som tidigare.
+    var enemyCount = depth === 0 || isFinalBossScene ? 0 : content.bossLevel ? 1 + Math.floor(Math.random() * 2) : Math.min(16, 2 + depth + Math.floor(Math.random() * 3))
     for (var j = 0; j < enemyCount; j++) {
-        var enemyPosition = randomPosition()
+        var enemyPosition = randomEnemyPosition()
         // Nya fiendetyper låses upp gradvis: förföljare, brute och spottare.
         var availableEnemyTypes = Math.min(8, 2 + Math.floor(depth / 2))
         var enemyType = content.bossLevel ? 0 : Math.floor(Math.random() * availableEnemyTypes)
         // Varje sort har egen grundhälsa; djupet gör även gamla fiender tåligare.
         var baseHealth = enemyType === 1 ? 5 : enemyType === 2 ? 2 : enemyType === 3 ? 3 : enemyType === 4 ? 8 : enemyType === 5 ? 2 : enemyType === 6 ? 10 : enemyType === 7 ? 3 : 1
         var enemyHealth = content.bossLevel ? 1 : baseHealth + Math.floor(depth / 3)
-        // Flytta zombier som hamnat alltför nära spelaren till andra sidan scenen.
-        if (distanceBetween(enemyPosition.x, enemyPosition.y, player.x, player.y) < 140) {
-            enemyPosition.x = player.x < totalWidth / 2 ? totalWidth - 40 : 40
-            enemyPosition.y = player.y < totalHeight / 2 ? totalHeight - 50 : 50
-        }
         content.enemies.push({
             x: enemyPosition.x,
             y: enemyPosition.y,
@@ -455,15 +501,15 @@ function makeScene() {
 
     // Bossen har mycket liv och blir tåligare på djupare bossnivåer.
     if (content.bossLevel) {
-        var bossPosition = randomPosition()
+        var bossPosition = randomEnemyPosition()
         // Varje bossnivå väljer mellan tre silhuetter och attackmönster.
-        var bossType = depth === 30 ? 3 : Math.floor(Math.random() * 3)
+        var bossType = isFinalBossScene ? 3 : Math.floor(Math.random() * 3)
         content.boss = {
-            x: bossPosition.x,
-            y: bossPosition.y,
+            x: isFinalBossScene ? totalWidth / 2 : bossPosition.x,
+            y: isFinalBossScene ? playfieldBottom() / 2 : bossPosition.y,
             type: bossType,
-            hp: depth === 30 ? 1200 : 120 + depth * 10,
-            maxHp: depth === 30 ? 1200 : 120 + depth * 10,
+            hp: isFinalBossScene ? 1200 : 120 + depth * 10,
+            maxHp: isFinalBossScene ? 1200 : 120 + depth * 10,
             // Bossens första attack kommer efter sex sekunder; tiden mäts i bildrutor.
             nextDashFrame: frameCount + updatesPerSecond * 6,
             warningPlayed: false,
@@ -507,7 +553,7 @@ function makeScene() {
     if (Math.random() < 0.2) {
         var housePosition = {
             x: 100 + Math.random() * (totalWidth - 200),
-            y: 100 + Math.random() * (totalHeight - 200)
+            y: 100 + Math.random() * Math.max(1, playfieldBottom() - 200)
         }
         content.house = {
             x: housePosition.x,
@@ -532,17 +578,17 @@ function getCurrentScene() {
 // Ritar en minikarta över x-scenerna och y-nivåerna som spelaren redan besökt.
 function drawVisitedMap() {
     var mapX = 12
-    var mapY = 35
+    var mapY = playfieldBottom() + 26
     var cellWidth = 7
-    var cellHeight = 4
+    var cellHeight = 3
 
-    rectangle(mapX - 5, mapY - 18, 88, 174, "dimgray")
-    rectangle(mapX - 2, mapY - 15, 82, 168, "black")
+    rectangle(mapX - 5, mapY - 18, 88, 100, "dimgray")
+    rectangle(mapX - 2, mapY - 15, 82, 94, "black")
     text(mapX + 2, mapY - 3, 13, "KARTA", "orange")
 
-    // Den spelbara vägen går från start nivå 0 mot -30; positiva y-nivåer utelämnas.
-    for (var mapYLevel = 0; mapYLevel >= -30; mapYLevel--) {
-        var rowY = mapY + 8 + Math.abs(mapYLevel) * cellHeight
+    // Den spelbara vägen går från startnivå 0 till finalnivå 20.
+    for (var mapYLevel = 0; mapYLevel <= 20; mapYLevel++) {
+        var rowY = mapY + 8 + mapYLevel * cellHeight
         for (var mapXScene = -5; mapXScene <= 5; mapXScene++) {
             var sceneKey = mapXScene + "," + mapYLevel
             if (scenes[sceneKey]) {
@@ -552,8 +598,8 @@ function drawVisitedMap() {
         }
     }
 
-    // Markera starten och slutnivån utan att visa otillgängliga områden ovanför vägen.
-    text(mapX + 2, mapY + 148, 11, "0 START     -30 SLUT", "silver")
+    // Markera starten och slutnivån på den positiva y-vägen.
+    text(mapX + 2, mapY + 76, 9, "0 > 20", "silver")
 }
 
 // Lägger till blodstänk när en zombie träffas och ett större stänk när den dör.
@@ -1180,13 +1226,17 @@ function cycleWeapon() {
     }
     for (var step = 1; step <= choices.length; step++) {
         var nextWeapon = choices[(currentIndex + step) % choices.length]
-        if (ammoForWeapon(nextWeapon) > 0) {
-            player.weapon = nextWeapon
-            player.ammo = ammoForWeapon(nextWeapon)
-            playSound("pickup")
-            return
-        }
+        if (selectWeapon(nextWeapon)) return
     }
+}
+
+// Väljer en viss slot direkt när den innehåller ammunition.
+function selectWeapon(weapon) {
+    if (ammoForWeapon(weapon) <= 0 || player.weapon === weapon) return false
+    player.weapon = weapon
+    player.ammo = ammoForWeapon(weapon)
+    playSound("pickup")
+    return true
 }
 
 // Huset fyller på varje vapens förråd utan att ta bort ammunition som redan finns.
@@ -1231,7 +1281,78 @@ function weaponName(weapon) {
     return "Inget vapen"
 }
 
-// Skadar en zombie och delar ut poäng om träffen besegrar den.
+// Visar alla vapenslots längst ned och markerar vilka som har ammunition.
+function drawWeaponHotbar() {
+    var weapons = ["pistol", "revolver", "shotgun", "smg", "rifle", "flame", "rocket"]
+    var labels = ["PISTOL", "REV", "HAGEL", "SMG", "GEVÄR", "ELD", "RAKET"]
+    var colors = ["white", "gold", "gold", "deepskyblue", "deepskyblue", "orange", "orange"]
+    var slotWidth = 70
+    var slotHeight = 52
+    var gap = 5
+    var barWidth = weapons.length * slotWidth + (weapons.length - 1) * gap
+    var startX = (totalWidth - barWidth) / 2
+    var startY = playfieldBottom() + 70
+
+    for (var slot = 0; slot < weapons.length; slot++) {
+        var slotX = startX + slot * (slotWidth + gap)
+        var available = ammoForWeapon(weapons[slot]) > 0
+        var selected = player.weapon === weapons[slot]
+        rectangle(slotX, startY, slotWidth, slotHeight, selected ? "orange" : available ? "dimgray" : "darkslategray")
+        rectangle(slotX + 2, startY + 2, slotWidth - 4, slotHeight - 4, selected ? "maroon" : "black")
+        rectangle(slotX + 4, startY + 4, slotWidth - 8, 3, selected ? "yellow" : available ? "dimgray" : "black")
+        text(slotX + 7, startY + 17, 12, String(slot + 1), selected ? "yellow" : "silver")
+        text(slotX + 20, startY + 25, 12, labels[slot], available ? colors[slot] : "dimgray")
+        text(slotX + 8, startY + 44, 11, available ? "AMMO " + ammoForWeapon(weapons[slot]) : "---", available ? "lime" : "gray")
+    }
+}
+
+// Doom-inspirerad statusrad täcker spelvärldens nederkant och samlar all spelarinformation.
+function drawDoomHud() {
+    var hudTop = playfieldBottom()
+    rectangle(0, hudTop, totalWidth, HUD_HEIGHT, "black")
+    rectangle(0, hudTop, totalWidth, 4, "silver")
+    rectangle(0, hudTop + 4, totalWidth, 4, "darkred")
+    rectangle(0, hudTop + 8, totalWidth, 2, "maroon")
+    rectangle(5, hudTop + 12, totalWidth - 10, HUD_HEIGHT - 17, "dimgray")
+    rectangle(8, hudTop + 15, totalWidth - 16, HUD_HEIGHT - 23, "black")
+    rectangle(108, hudTop + 13, totalWidth - 120, 34, "darkred")
+    rectangle(111, hudTop + 16, totalWidth - 126, 28, "dimgray")
+    rectangle(114, hudTop + 19, totalWidth - 132, 22, "black")
+
+    drawVisitedMap()
+    var statsX = 120
+    var statsWidth = totalWidth - statsX - 25
+    text(statsX, hudTop + 35, 15, "LIV " + player.lives + "/3", player.lives > 1 ? "lime" : "red")
+    text(statsX + statsWidth * 0.16, hudTop + 35, 15, "SKÖLD " + player.shields + "/3", player.shields > 0 ? "deepskyblue" : "gray")
+    text(statsX + statsWidth * 0.34, hudTop + 35, 15, "POÄNG " + score, "white")
+    text(statsX + statsWidth * 0.53, hudTop + 35, 15, "NIVÅ " + Math.max(0, scene.y), "deepskyblue")
+    var corruptionPercent = Math.floor(Math.min(20, Math.max(0, scene.y)) / 20 * 100)
+    text(statsX + statsWidth * 0.68, hudTop + 35, 15, "KORR " + corruptionPercent + "%", corruptionPercent >= 80 ? "red" : "orange")
+    var staminaX = statsX + statsWidth * 0.84
+    text(staminaX, hudTop + 28, 12, player.sprintLocked ? "SPRINT LÅST" : "STAMINA", player.sprintLocked ? "red" : "deepskyblue")
+    rectangle(staminaX, hudTop + 38, statsX + statsWidth - staminaX, 7, "dimgray")
+    rectangle(staminaX + 2, hudTop + 40, Math.max(0, statsX + statsWidth - staminaX - 4) * player.stamina / player.maxStamina, 3, player.stamina > 50 && !player.sprintLocked ? "deepskyblue" : "red")
+    text(totalWidth / 2 - 56, hudTop + 59, 10, "ARSENAL  |  1-7 / Q", "silver")
+    drawWeaponHotbar()
+}
+
+// Var femte zombiedöd ger ett liv; vid fulla liv blir belöningen i stället en sköld.
+function rewardForEnemyKill() {
+    player.killsTowardReward += 1
+    if (player.killsTowardReward < 5) return
+
+    player.killsTowardReward = 0
+    if (player.lives < 3) {
+        player.lives += 1
+    } else if (player.shields < 3) {
+        player.shields += 1
+    } else {
+        return
+    }
+    playSound("pickup")
+}
+
+// Skadar en zombie och delar ut poäng och belöning om träffen besegrar den.
 function damageZombie(currentScene, enemy, damage) {
     // Skada dras från livmätaren; funktionen returnerar true om zombien besegras.
     enemy.hp -= damage
@@ -1239,6 +1360,7 @@ function damageZombie(currentScene, enemy, damage) {
     playSound(enemy.hp <= 0 ? "kill" : "hit")
     if (enemy.hp <= 0) {
         score += enemy.type === 6 ? 120 : enemy.type === 7 ? 75 : enemy.type === 5 ? 60 : enemy.type === 4 ? 100 : enemy.type === 1 ? 50 : enemy.type === 2 ? 30 : enemy.type === 3 ? 40 : 20
+        rewardForEnemyKill()
         return true
     }
     return false
@@ -1254,7 +1376,7 @@ function damageBoss(currentScene, damage) {
     if (currentScene.boss.hp <= 0) {
         currentScene.boss.hp = 0
         score += 500
-        if (currentScene.boss.type === 3 && Math.abs(scene.y) === 30) {
+        if (currentScene.boss.type === 3 && scene.x === 0 && scene.y === 20) {
             triggerVictory()
         }
         return true
@@ -1366,7 +1488,7 @@ function drawBossArena(bossType) {
     if (bossType === 3) {
         rectangle(totalWidth / 2 - 8, 0, 16, totalHeight, "darkred")
         rectangle(totalWidth / 2 - 3, 0, 6, totalHeight, "red")
-        text(totalWidth / 2 - 115, 35, 26, "FINALBOSS - NIVÅ 30", "orange")
+        text(totalWidth / 2 - 115, 35, 26, "FINALBOSS - NIVÅ 20", "orange")
     } else {
         text(totalWidth / 2 - 65, 35, 26, bossName(bossType), bossType === 1 ? "lime" : bossType === 2 ? "silver" : "red")
     }
@@ -1435,7 +1557,7 @@ function drawVictoryScreen() {
     text(totalWidth / 2 - 150, totalHeight / 2 - 59, 38, "DU ÖVERLEVDE", "orange")
     text(totalWidth / 2 - 149, totalHeight / 2 - 15, 21, "FINALBOSSEN ÄR BESEGRAD", "white")
     text(totalWidth / 2 - 125, totalHeight / 2 + 22, 18, "SLUTPOÄNG: " + score, "deepskyblue")
-    text(totalWidth / 2 - 143, totalHeight / 2 + 53, 16, "DU KLARADE NIVÅ 30", "lime")
+    text(totalWidth / 2 - 143, totalHeight / 2 + 53, 16, "DU KLARADE NIVÅ 20", "lime")
     if (victoryAge < updatesPerSecond * 3) {
         text(totalWidth / 2 - 100, totalHeight / 2 + 79, 13, "SKOGEN HAR TYSTNAT...", "silver")
     }
@@ -1561,6 +1683,11 @@ function update() {
     var switchIsDown = keyboard.q
     if (switchIsDown && !weaponSwitchWasDown) cycleWeapon()
     weaponSwitchWasDown = switchIsDown
+    var hotbarWeapons = ["pistol", "revolver", "shotgun", "smg", "rifle", "flame", "rocket"]
+    if (pendingHotbarSelection >= 0) {
+        selectWeapon(hotbarWeapons[pendingHotbarSelection])
+        pendingHotbarSelection = -1
+    }
 
     // WASD väljer rörelseriktning och uppdaterar vart karaktären och vapnet är vända.
     var moveX = (keyboard.d ? 1 : 0) - (keyboard.a ? 1 : 0)
@@ -1646,21 +1773,21 @@ function update() {
         bullets = []
         playSound("scene")
     }
-    if (player.y < 0 && scene.y < 30) {
-        player.y = totalHeight
-        scene.y += 1
+    if (player.y < 0 && scene.y > 0) {
+        player.y = playfieldBottom() - player.size
+        scene.y -= 1
         bullets = []
         playSound("scene")
     } else if (player.y < 0) {
         player.y = 1
     }
-    if (player.y > totalHeight && scene.y > -30) {
-        player.y = 1
-        scene.y -= 1
+    if (player.y + player.size > playfieldBottom() && scene.y < 20) {
+        player.y = player.size
+        scene.y += 1
         bullets = []
         playSound("scene")
-    } else if (player.y > totalHeight) {
-        player.y = totalHeight - 1
+    } else if (player.y + player.size > playfieldBottom()) {
+        player.y = playfieldBottom() - player.size
     }
 
     // SMG och eldkastare kan skjuta automatiskt; övriga vapen skjuter ett skott per tryck.
@@ -1837,6 +1964,7 @@ function update() {
             }
         }
 
+        enemy.y = Math.min(enemy.y, playfieldBottom() - 24)
         if (distanceBetween(player.x, player.y, enemy.x, enemy.y - 8) < player.size + 8) {
             loseLife(currentScene)
         }
@@ -1975,39 +2103,15 @@ function update() {
             if (boss.y > player.y) boss.y -= chaseSpeed
         }
 
+        boss.y = Math.min(boss.y, playfieldBottom() - (boss.type === 3 ? 92 : 40))
         var bossTouchRadius = boss.type === 3 ? 64 : 24
         if (distanceBetween(player.x, player.y, boss.x, boss.y - 8) < player.size + bossTouchRadius) {
             loseLife(currentScene)
         }
     }
 
-    // HUD-panelen flyttas åt höger så minikartan får en egen plats i vänstra hörnet.
+    // Statusrad och besökta nivåer samlas längst ned i en Doom-inspirerad panel.
     drawScreenFlicker()
-
-    rectangle(102, 10, 412, 151, "dimgray")
-    rectangle(105, 13, 406, 145, "black")
-    rectangle(105, 13, 5, 145, "darkred")
-    text(117, 32, 20, "NATTENS ÖVERLEVARE", "orange")
-    text(431, 32, 16, "LIV: " + player.lives + "/3", player.lives > 1 ? "lime" : "red")
-    text(117, 53, 15, "SCEN: " + scene.x + ", " + scene.y, "deepskyblue")
-    text(330, 53, 15, "POÄNG: " + score, "white")
-    // Korruption visas i procent och når 100 % vid finalnivån.
-    var corruptionPercent = Math.floor(Math.min(30, Math.abs(scene.y)) / 30 * 100)
-    text(117, 75, 15, "CORRUPTION: " + corruptionPercent + "%", corruptionPercent >= 80 ? "red" : "white")
-    rectangle(117, 81, 270, 7, "dimgray")
-    rectangle(119, 83, 266 * corruptionPercent / 100, 3, corruptionPercent >= 80 ? "red" : "maroon")
-    text(117, 105, 13, "WASD RÖR/SIKTA   Q BYT VAPEN", "lightgray")
-    text(117, 123, 13, "MELLANSLAG SKJUT   SHIFT SPRING", "lightgray")
-    var hudWeaponColor = player.weapon === "rocket" || player.weapon === "flame" ? "orange" : player.weapon === "smg" || player.weapon === "rifle" ? "deepskyblue" : player.weapon === "shotgun" || player.weapon === "revolver" ? "gold" : "white"
-    text(117, 147, 16, player.weapon ? weaponName(player.weapon).toUpperCase() : "INGET VAPEN", hudWeaponColor)
-    text(300, 147, 16, player.weapon ? "AMMO: " + player.ammo : "HITTA ETT VAPEN", player.ammo > 0 ? "lime" : "red")
-    // Karta visar bara scener som redan skapats/besökts; röd ruta är boss och orange är aktuell scen.
-    drawVisitedMap()
-    rectangle(totalWidth - 205, totalHeight - 56, 190, 48, "dimgray")
-    rectangle(totalWidth - 201, totalHeight - 52, 182, 40, "black")
-    text(totalWidth - 191, totalHeight - 34, 15, player.sprintLocked ? "SPRINT LÅST" : "STAMINA", player.sprintLocked ? "red" : "deepskyblue")
-    rectangle(totalWidth - 191, totalHeight - 27, 170, 10, "dimgray")
-    rectangle(totalWidth - 188, totalHeight - 24, 164 * player.stamina / player.maxStamina, 4, player.stamina > 50 && !player.sprintLocked ? "deepskyblue" : "red")
     if (currentScene.boss && currentScene.boss.hp > 0) {
         // Omvandla återstående bildrutor till sekunder för bossens nedräkning.
         var bossTimerFrame = currentScene.boss.type === 1 ? currentScene.boss.nextShotFrame : currentScene.boss.nextDashFrame
@@ -2017,6 +2121,7 @@ function update() {
         text(totalWidth - 190, 57, 16, bossStatus, "orange")
     }
     drawHitOverlay()
+    drawDoomHud()
 
 }
   </script>

@@ -8,15 +8,40 @@
 <body>
   <script src="http://koda.nu/simple.js">
 
-function update()[
+var antalzombies = prompt("hur många zombies?")
+var trees = []
+
+
+
+for(var i = 1; i <= antalzombies; i++ ) {
+trees.push({
+x: random(0, totalWidth),
+y: random(0, totalHeight)
+});
+}
+function drawtrees (x,y) {
+rectangle(x,y,30,30,"green")
+}
+
+
+console.log(trees[1])
+
+function update(){
+clearScreen()
+
+if (antalzombies == 0) {
+antalzombies = 0 }
+
+text(30,30,30,"zombies " + antalzombies, "black" ) 
+for(var i = 0; i < trees.length; i++ ) {
+drawtrees(trees[i].x, trees[i].y);  
+}
 
 
 
 
-]
 
-
-
+}
   </script>
 </body>
 </html>

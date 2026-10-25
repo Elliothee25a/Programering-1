@@ -85,8 +85,6 @@ function update() {
 
 
   for (var i = 0; i < enemies.length; i++) {
-
-
     drawZombie(enemies[i].x, enemies[i].y);
     if (distance(player.x, player.y, enemies[i].x, enemies[i].y) < 65   ) {
       text(280, 250, 50, "GAME OVER", "red");

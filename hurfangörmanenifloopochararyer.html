@@ -8,40 +8,113 @@
 <body>
   <script src="http://koda.nu/simple.js">
 
-var antalzombies = prompt("hur många zombies?")
-var trees = []
+
+
+var lista = []
 
 
 
-for(var i = 1; i <= antalzombies; i++ ) {
-trees.push({
+
+
+
+for(var i = 1; i <= 7; i++) {
+
+lista.push({
 x: random(0, totalWidth),
 y: random(0, totalHeight)
-});
-}
-function drawtrees (x,y) {
-rectangle(x,y,30,30,"green")
-}
-
-
-console.log(trees[1])
-
-function update(){
-clearScreen()
-
-if (antalzombies == 0) {
-antalzombies = 0 }
-
-text(30,30,30,"zombies " + antalzombies, "black" ) 
-for(var i = 0; i < trees.length; i++ ) {
-drawtrees(trees[i].x, trees[i].y);  
+})
+console.log(lista[x])   
 }
 
 
 
 
 
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// var antalzombies = random(0,1000)
+// var trees = []
+
+
+
+// for(var i = 1; i <= antalzombies; i++ ) {
+// trees.push({
+// x: random(0, totalWidth),
+// y: random(0, totalHeight)
+// });
+// }
+// function drawtrees (x,y) {
+// rectangle(x,y,30,30,"green")
+// }
+
+
+// console.log(trees[1])
+
+// function update(){
+// clearScreen()
+
+// if (antalzombies == 0) {
+// antalzombies = 0 }
+
+// text(30,30,30,"zombies " + antalzombies, "black" ) 
+// for(var i = 0; i < trees.length; i++ ) {
+// drawtrees(trees[i].x, trees[i].y);  
+//}
+
+//}
   </script>
 </body>
 </html>

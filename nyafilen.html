@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kapitel 1 Lektion 1</title>
+</head>
+<body>
+  <script src="http://koda.nu/simple.js">
+
+var players = []
+
+var playercount = prompt("hur mycket?S")
+
+var textnumber = 0
+
+var player = {
+x: 60,
+y: 60,
+size: 20,
+color: "blue",
+}
+//Funcion somritar röda cirklarna
+function drawplayers (x, y) {
+circle(x,y,player.size,"red",)
+
+}
+
+ for(var i = 1; i <= playercount; i++ ) {
+ players.push({
+ x: random(0, totalWidth),
+ y: random(0, totalHeight)
+ });
+}
+
+function update () {
+clearScreen ()
+//texten som finns kan ändrass om man trycker left ketyboard
+text(300,300,30,textnumber, "red")
+//spelaren den blåa finns bara där
+circle(player.x,player.y,player.size,player.color,)
+
+//tryck left blir nummeret större
+if (keyboard.left) {
+textnumber ++
+}
+
+
+
+//for loppen som spawrarn pllayerrs
+ for(var i = 0; i < players.length; i++ ) {
+ drawplayers(players[i].x, players[i].y);  
+}
+
+}
+  </script>
+</body>
+</html>

@@ -17,7 +17,7 @@ var scene = {
 var player = {
     x: totalWidth /2, 
     y: totalHeight /2, 
-    size: 15, 
+    size: 30, 
     color: "blue", 
     speed: 4,
     haspistol: false,
@@ -54,8 +54,11 @@ rectangle(0, 0, totalWidth, totalHeight, "black");
 
 
 //spelare
-circle(player.x,player.y,player.size,player.color)
-
+rectangle(player.x-player.size/2,
+player.y-player.size/2,
+player.size,
+player.size,
+player.color)
 
 
 

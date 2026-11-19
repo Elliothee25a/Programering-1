@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kapitel 1 Lektion 1</title>
+  <title>Kapitel 1 Lektion 1</title> 
 </head>
 <body>
   <script src="http://koda.nu/simple.js">
@@ -16,24 +16,26 @@
 // (Vad har du fått feedback om tidigare som du vill bli bättre på,
 //  eller något du aldrig hann klart med? Skriv in det här och se till
 //  att du övar på det i ditt spel under projektet.)
-// 1.
+// 1. arrayer.
 
 // --- MITT KRAV (måste finnas) ---
 // Antal spelare:1
-// Antal fiender/hinder: spawner fler och fler efter varenda wave tills man dör
-// Mål (hur vinner/klarar man spelet?): du ska överleve så länge du kan tills du dör av en zombie
+// Antal fiender/hinder: spawner fler och fler efter varenda wave tills man dör. En wave är när zombiesen kommer sen dödarman dom man väntar en kort tid för att kanske loota eller shopa sen spawnar det igen. 
+// Mål (hur vinner/klarar man spelet?): du ska överleve så länge du kan tills du dör av en zombie. det blir fler och fler zombies ska inte finnas någon gräns gör hur många som kommer
 // Förlustvillkor (hur förlorar man?): Du blir biten av en av zombiserna och tappar ett liv. man har 3 liv sen dör man
 
 // --- MIN REKOMMENDATION (bör finnas) ---
-// 1. Zombies som spawnar utanför spelarens skärm och kommer in 
-// 3. Spelaren ska spawna med en pistol som har infinite ammo men tar lite skada.
-// 4. zombies get spelaren poäng och pengar efter det har dött
-// 5. olika waves där zombies spawnar.
-// 6. olika typer av zombies med mer hp och mindre hp.
+// 1. Zombies som spawnar utanför spelarens skärm och kommer in krav
+// 3. Spelaren ska spawna med en pistol som har infinite ammo men tar lite skada. eftersom att om du inte har ett vapen kan du inte döda zombies
+// 4. zombies get spelaren poäng och pengar efter det har dött. varje zombie ger random ammo 0-10 och man får 1 påäng till 10 beroände på vilken typ av zombie man dödar och pengr varriear också på zombie typen
+// 5. olika waves där zombies spawnar. en wave är perioden när zombies spawnar som kommer öka varenda gång tills spelaren inte kan döda dom längre eller spelaren tappar sitt sista liv.
+// 6. olika typer av zombies med mer hp och mindre hp. 
 
 // --- MIN UTMANING (kan finnas, om tid finns) ---
-// 1. En shop man kan köpa vapen i 
-// 2. 
+// 1. En shop man kan köpa vapen i. du använder pengarna du får från att döda zombiesen.
+// 1a.  -
+// 1b.
+// 2.
 // 3. 
 // 4. 
 
@@ -41,7 +43,31 @@
 // (Lägg till fler idéer här under hela projektet.
 //  Känner du dig klar med allt ovan? Kolla den här listan och börja på nästa.)
 //
+///////////////////////////////////////////////////////////////////////////////////
 
+
+//om keyboard a trycks moveX är minus 1
+//om keyboard d trycks moveX är plus 1
+//om keyboard w trycks moveY är minus 1
+//om keyboard s trycks moveY är plus 1
+
+//om moveX och moveY är strikt inte like med 0
+  //moveX är sitt number gånger 0.707
+  //moveYär sitt number gånger 0.707
+
+//om wave = true 
+// visa text wave (numer av wave) röd text 
+
+
+
+function update () {
+clearScreen()
+
+
+
+
+
+}
   </script>
 </body>
 </html>

@@ -64,10 +64,36 @@ updatesPerSecond = 144;
 var player = {
     x: 0,    
     y: 0,  
-    size: 15, 
-    color: "blue",
+    size: 30, 
+    color: "#65734A",
     speed: 4   
 };
+
+function drawPlayer(x, y) {
+  var s = player.size;
+
+  // Thew player head helmet
+  circle(x, y + s * 0.32, s * 0.68, "#20251F");
+  rectangle(x - s * 0.43, y + s * 0.13, s * 0.86, s * 0.62, player.color);
+  circle(x, y + s * 0.34, s * 0.52, player.color);
+  rectangle(x - s * 0.18, y + s * 0.17, s * 0.36, s * 0.47, "#4B5838");
+
+ 
+}
+
+
+//function som ritar träd över mappen och populerar den så man faktist ser att man rör sig
+function drawTree(x, y, size) {
+
+
+
+
+}
+
+
+
+function update () {
+clearScreen()
 
 var move = {
   X: 0,
@@ -78,10 +104,6 @@ var center = {
 X: totalWidth / 2,
 Y: totalHeight / 2,
 }
-
-function update () {
-clearScreen()
-
 
 
 rectangle(0,0,totalWidth, totalHeight, "black")
@@ -96,15 +118,14 @@ if (keyboard.d) move.X += 1;
 if (keyboard.w) move.Y = 1;
 if (keyboard.s) move.Y += 1;
 
-   if (move.X !== 0 && move.Y !== 0) {
-        move.X *= 0.707;
-        move.Y *= 0.707;
-    }
+//if (move.X !== 0 && move.Y !== 0) {
+//   move.X *= 0.707;
+//   move.Y *= 0.707;
+//}
 
-circle(center.X, center.Y, player.size, player.color);
+drawPlayer(center.X, center.Y);
+//circle(center.X, center.Y, 10, "blue")
 
-
-console.log(move.Y)
 
 
 

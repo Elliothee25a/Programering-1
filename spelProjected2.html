@@ -58,12 +58,53 @@
 //om wave = true 
 // visa text wave (numer av wave) röd text 
 
+updatesPerSecond = 144;
 
+
+var player = {
+    x: 0,    
+    y: 0,  
+    size: 15, 
+    color: "blue",
+    speed: 4   
+};
+
+var move = {
+  X: 0,
+  Y: 0,
+
+}
+var center = {
+X: totalWidth / 2,
+Y: totalHeight / 2,
+}
 
 function update () {
 clearScreen()
 
 
+
+rectangle(0,0,totalWidth, totalHeight, "black")
+
+//player.x += move.X * player.speed;
+//player.y += move.Y * player.speed;
+
+
+
+if (keyboard.a) move.X -= 1;
+if (keyboard.d) move.X += 1;
+if (keyboard.w) move.Y = 1;
+if (keyboard.s) move.Y += 1;
+
+   if (move.X !== 0 && move.Y !== 0) {
+        move.X *= 0.707;
+        move.Y *= 0.707;
+    }
+
+circle(center.X, center.Y, player.size, player.color);
+
+
+console.log(move.Y)
 
 
 

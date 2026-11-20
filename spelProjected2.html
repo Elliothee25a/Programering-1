@@ -44,6 +44,8 @@
 //  Känner du dig klar med allt ovan? Kolla den här listan och börja på nästa.)
 // Player sprite istället för en ritad med ciklar och trianglar o annat
 // Shdows to everything
+// såga ner träd 
+// bygga saker 
 ///////////////////////////////////////////////////////////////////////////////////
 
 updatesPerSecond = 144;
@@ -54,27 +56,41 @@ X: totalWidth / 2,
 Y: totalHeight / 2, }
 
 var player = {
-    x: 0,    
-    y: 0,  
+    x: 0,    //spelarens X
+    y: 0,    //Spelarens Y
     size: 30, 
     color: "#65734A",
     speed: 2   
 };
-var TreeAmount = random(15,40)
+//hur många träd som finns i världen
+var treeAmount = random(500,2000)
 var trees = [];
 
-for (var i = 0; i < 25; i++) {
+//
+for (var i = 0; i < treeAmount; i++) {
   trees.push({
-    x: random(0, totalWidth),
-    y: random(0, totalHeight),
-    size: random(50, 90)
+    x: random(-1600, 3900),
+    y: random(-1600, 3900),
+    size: random(50, 90),
+    treeType: random(1,3)
+  });
+}
+
+var bushAmount = random(500,600)
+var bushes = [];
+
+for (var i = 0; i < bushAmount; i++) {
+  bushes.push({
+    x: random(-1600, 3900),
+    y: random(-1600, 3900),
+    size: random(40, 60),
+
   });
 }
 
 function drawPlayer(x, y) {
   var s = player.size;
 
-  // Thew player head helmet
   circle(x, y, s * 0.68, "#20251F");
   rectangle(x - s * 0.43, y, s * 0.86, s * 0.62, player.color);
   circle(x, y, s * 0.52, player.color);
@@ -83,18 +99,89 @@ function drawPlayer(x, y) {
 }
 
 //function som ritar träd över mappen och populerar den så man faktist ser att man rör sig
-function drawTree(x, y, size) {
+function drawTree(x, y, size, treetype) {
+  var r = size / 2;
+  var x = x - player.x
+  var y = y - player.y
+  if (treetype == 1) {
+  circle(x + r * 0.08, y + r * 0.2, r * 1.02, "#283827");
+  circle(x - r * 0.48, y + r * 0.06, r * 0.55, "#283827");
+  circle(x + r * 0.48, y + r * 0.04, r * 0.57, "#283827");
+  circle(x, y, r * 0.88, "#315638");
+  circle(x - r * 0.48, y - r * 0.04, r * 0.48, "#3A653D");
+  circle(x + r * 0.48, y - r * 0.08, r * 0.5, "#355F39");
+  circle(x - r * 0.2, y - r * 0.36, r * 0.52, "#477748");
+  circle(x + r * 0.24, y - r * 0.34, r * 0.53, "#3F7042");
+  circle(x - r * 0.2, y + r * 0.3, r * 0.5, "#315B36");
+  circle(x + r * 0.27, y + r * 0.27, r * 0.48, "#38643A");
+  line(x, y, x - r * 0.48, y - r * 0.36, r * 0.09, "#294B31");
+  line(x, y, x + r * 0.49, y - r * 0.31, r * 0.09, "#294B31");
+  line(x, y, x - r * 0.42, y + r * 0.37, r * 0.09, "#294B31");
+  line(x, y, x + r * 0.43, y + r * 0.36, r * 0.09, "#294B31");
+  circle(x, y, r * 0.18, "#765336");
+  circle(x, y, r * 0.1, "#997044");
+  circle(x - r * 0.47, y - r * 0.17, r * 0.19, "#679052");
+  circle(x - r * 0.12, y - r * 0.48, r * 0.18, "#72995A");
+  circle(x + r * 0.34, y - r * 0.3, r * 0.17, "#62894D");
+  circle(x - r * 0.27, y + r * 0.19, r * 0.16, "#4D7947");
+  circle(x + r * 0.31, y + r * 0.2, r * 0.14, "#4A7542");
+  }
+  if (treetype == 2) {
+
+  }
+  if (treetype == 3) {
+
+  }
+}
+//buskar som spawnar
+function drawBush(x, y, size) {
+  var r = size / 2;
+  var x = x - player.x
+  var y = y - player.y
+  circle(x + r * 0.08, y + r * 0.22, r * 1.02, "#293927");
+  circle(x - r * 0.48, y + r * 0.08, r * 0.56, "#293927");
+  circle(x + r * 0.48, y + r * 0.08, r * 0.58, "#293927");
+  circle(x - r * 0.48, y, r * 0.48, "#365C32");
+  circle(x + r * 0.48, y, r * 0.5, "#3A6335");
+  circle(x - r * 0.18, y - r * 0.32, r * 0.53, "#477542");
+  circle(x + r * 0.24, y - r * 0.3, r * 0.55, "#416D3B");
+  circle(x, y + r * 0.2, r * 0.6, "#31562F");
+  circle(x, y - r * 0.02, r * 0.51, "#4B7B43");
+  circle(x - r * 0.48, y - r * 0.08, r * 0.2, "#628B4D");
+  circle(x - r * 0.08, y - r * 0.43, r * 0.19, "#719456");
+  circle(x + r * 0.42, y - r * 0.26, r * 0.2, "#648B4D");
+  circle(x + r * 0.18, y + r * 0.32, r * 0.16, "#294B2D");
+  circle(x - r * 0.32, y + r * 0.23, r * 0.13, "#2B4D2D");
+}
+
+//stenar som spawnar
+function drawStone(x, y, size) {
+  var r = size / 2;
+  var x = x - player.x
+  var y = y - player.y
+  circle(x + r * 0.08, y + r * 0.22, r * 0.82, "#354037");
+  triangle(x - r * 0.7, y - r * 0.08,x - r * 0.18, y - r * 0.68,x + r * 0.03, y + r * 0.05,"#3D4545");
+  triangle(x - r * 0.18, y - r * 0.68,x + r * 0.48, y - r * 0.46,x + r * 0.03, y + r * 0.05,"#3D4545");
+  triangle(x + r * 0.48, y - r * 0.46,x + r * 0.68, y + r * 0.08,x + r * 0.03, y + r * 0.05,"#3D4545");
+  triangle(x + r * 0.68, y + r * 0.08,x + r * 0.28, y + r * 0.55,x + r * 0.03, y + r * 0.05,"#3D4545");
+  triangle(x + r * 0.28, y + r * 0.55,x - r * 0.52, y + r * 0.38,x + r * 0.03, y + r * 0.05,"#3D4545");
+  triangle(x - r * 0.52, y + r * 0.38,x - r * 0.7, y - r * 0.08,x + r * 0.03, y + r * 0.05,"#3D4545");
+  triangle(x - r * 0.7, y - r * 0.08,x - r * 0.18, y - r * 0.68,x - r * 0.1, y + r * 0.02,"#929995");
+  triangle(x - r * 0.18, y - r * 0.68,x + r * 0.48, y - r * 0.46,x - r * 0.1, y + r * 0.02,"#737C7B");
+  triangle(x + r * 0.48, y - r * 0.46,x + r * 0.68, y + r * 0.08,x + r * 0.03, y + r * 0.05,"#596261");
+  triangle(x + r * 0.68, y + r * 0.08,x + r * 0.28, y + r * 0.55,x + r * 0.03, y + r * 0.05,"#4B5453");
+  triangle(x + r * 0.28, y + r * 0.55,x - r * 0.52, y + r * 0.38,x + r * 0.03, y + r * 0.05,"#66706E");
+  triangle(x - r * 0.52, y + r * 0.38,x - r * 0.7, y - r * 0.08,x + r * 0.03, y + r * 0.05,"#7E8784");
+  triangle(x - r * 0.34, y - r * 0.28,x - r * 0.12, y - r * 0.17,x - r * 0.25, y + r * 0.02,"#AAB0AA");
+  triangle(x + r * 0.12, y + r * 0.2,x + r * 0.39, y + r * 0.1,x + r * 0.25, y + r * 0.32,"#343D3D");
+}
+
+function drawgrass(x, y, size) {
   var r = size / 2;
   var x = x - player.x
   var y = y - player.y
 
-  circle(x, y + r * 0.12, r, "#202B1D");
-  circle(x, y, r * 0.88, "#315A34");
-  circle(x - r * 0.24, y - r * 0.1, r * 0.52, "#456F3B");
-  circle(x + r * 0.23, y - r * 0.08, r * 0.49, "#3E6838");
-  circle(x, y + r * 0.22, r * 0.45, "#355D33");
-  circle(x - r * 0.14, y - r * 0.22, r * 0.28, "#66864A");
-  circle(x + r * 0.22, y + r * 0., r * 0.14, "#2B512F");
+  
 }
 
 function update () {
@@ -107,7 +194,18 @@ var move = {
 }
 
 //Simpel backgrund ska bytta ut
-rectangle(0, 0, totalWidth, totalHeight, "green",)
+rectangle(0, 0, totalWidth, totalHeight, "#70543e",)
+rectangle(0 - player.x , 0- player.y, 2600, 2600, "green",)
+
+//bush
+for (var i = 0; i < bushes.length; i++) {
+  var bush = bushes[i];
+  drawBush(bush.x, bush.y, bush.size);
+}
+drawStone(300,300,70)
+
+
+
 
 //WASD För rörelse
 if (keyboard.a) move.X -= 1;
@@ -156,6 +254,7 @@ rotate(angle - 90);
 drawPlayer(0, 0);
 restore();
 
+//Cod som spawnar Träd en
 for (var i = 0; i < trees.length; i++) {
   var tree = trees[i];
   drawTree(tree.x, tree.y, tree.size);
@@ -165,13 +264,12 @@ for (var i = 0; i < trees.length; i++) {
 text(20,30, 20, "Position:" + Math.floor(player.x) + "," + Math.floor(player.y), "black")
 text(20,60, 20, "Direction X: " + dx, "black")
 text(20,90, 20, "Direction y: " + dy, "black")
-text(20,120, 20, "Tree Amount: " + TreeAmount, "black")
+text(20,120, 20, "Tree Amount: " + treeAmount, "black")
 text(20,150, 20, "Width: " + totalWidth + "," + "Height: " + totalHeight, "black")
 text(20,180, 20, "speed: " + player.speed, "black")
+text(20,210, 20, "treetype: " + drawTree(treetype), "black")
 
-
-
-
+treetype
 
 }
   </script>

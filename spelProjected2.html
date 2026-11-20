@@ -19,7 +19,7 @@
 // 1. arrayer.
 
 // --- MITT KRAV (måste finnas) ---
-// Antal spelare:1
+// Antal spelare:1  //
 // Antal fiender/hinder: spawner fler och fler efter varenda wave tills man dör. En wave är när zombiesen kommer sen dödarman dom man väntar en kort tid för att kanske loota eller shopa sen spawnar det igen. 
 // Mål (hur vinner/klarar man spelet?): du ska överleve så länge du kan tills du dör av en zombie. det blir fler och fler zombies ska inte finnas någon gräns gör hur många som kommer
 // Förlustvillkor (hur förlorar man?): Du blir biten av en av zombiserna och tappar ett liv. man har 3 liv sen dör man
@@ -33,98 +33,142 @@
 
 // --- MIN UTMANING (kan finnas, om tid finns) ---
 // 1. En shop man kan köpa vapen i. du använder pengarna du får från att döda zombiesen.
-// 1a.  -
+// 1a.  
 // 1b.
-// 2.
+// 2. 
 // 3. 
 // 4. 
 
 // --- FÖRBÄTTRINGAR ATT GÖRA SEN ---
 // (Lägg till fler idéer här under hela projektet.
 //  Känner du dig klar med allt ovan? Kolla den här listan och börja på nästa.)
-//
+// Player sprite istället för en ritad med ciklar och trianglar o annat
+// Shdows to everything
 ///////////////////////////////////////////////////////////////////////////////////
-
-
-//om keyboard a trycks moveX är minus 1
-//om keyboard d trycks moveX är plus 1
-//om keyboard w trycks moveY är minus 1
-//om keyboard s trycks moveY är plus 1
-
-//om moveX och moveY är strikt inte like med 0
-  //moveX är sitt number gånger 0.707
-  //moveYär sitt number gånger 0.707
-
-//om wave = true 
-// visa text wave (numer av wave) röd text 
 
 updatesPerSecond = 144;
 
+//mätter ut mitten av skärmen
+var center = {
+X: totalWidth / 2,
+Y: totalHeight / 2, }
 
 var player = {
     x: 0,    
     y: 0,  
     size: 30, 
     color: "#65734A",
-    speed: 4   
+    speed: 2   
 };
+var TreeAmount = random(15,40)
+var trees = [];
+
+for (var i = 0; i < 25; i++) {
+  trees.push({
+    x: random(0, totalWidth),
+    y: random(0, totalHeight),
+    size: random(50, 90)
+  });
+}
 
 function drawPlayer(x, y) {
   var s = player.size;
 
   // Thew player head helmet
-  circle(x, y + s * 0.32, s * 0.68, "#20251F");
-  rectangle(x - s * 0.43, y + s * 0.13, s * 0.86, s * 0.62, player.color);
-  circle(x, y + s * 0.34, s * 0.52, player.color);
-  rectangle(x - s * 0.18, y + s * 0.17, s * 0.36, s * 0.47, "#4B5838");
+  circle(x, y, s * 0.68, "#20251F");
+  rectangle(x - s * 0.43, y, s * 0.86, s * 0.62, player.color);
+  circle(x, y, s * 0.52, player.color);
+  rectangle(x - s * 0.18, y, s * 0.36, s * 0.47, "#4B5838");
 
- 
 }
-
 
 //function som ritar träd över mappen och populerar den så man faktist ser att man rör sig
 function drawTree(x, y, size) {
+  var r = size / 2;
+  var x = x - player.x
+  var y = y - player.y
 
-
-
-
+  circle(x, y + r * 0.12, r, "#202B1D");
+  circle(x, y, r * 0.88, "#315A34");
+  circle(x - r * 0.24, y - r * 0.1, r * 0.52, "#456F3B");
+  circle(x + r * 0.23, y - r * 0.08, r * 0.49, "#3E6838");
+  circle(x, y + r * 0.22, r * 0.45, "#355D33");
+  circle(x - r * 0.14, y - r * 0.22, r * 0.28, "#66864A");
+  circle(x + r * 0.22, y + r * 0., r * 0.14, "#2B512F");
 }
-
-
 
 function update () {
 clearScreen()
 
+//varieblen för att förflytta sig
 var move = {
   X: 0,
   Y: 0,
-
-}
-var center = {
-X: totalWidth / 2,
-Y: totalHeight / 2,
 }
 
+//Simpel backgrund ska bytta ut
+rectangle(0, 0, totalWidth, totalHeight, "green",)
 
-rectangle(0,0,totalWidth, totalHeight, "black")
-
-//player.x += move.X * player.speed;
-//player.y += move.Y * player.speed;
-
-
-
+//WASD För rörelse
 if (keyboard.a) move.X -= 1;
 if (keyboard.d) move.X += 1;
-if (keyboard.w) move.Y = 1;
+if (keyboard.w) move.Y -= 1;
 if (keyboard.s) move.Y += 1;
 
-//if (move.X !== 0 && move.Y !== 0) {
-//   move.X *= 0.707;
-//   move.Y *= 0.707;
-//}
+if (keyboard.shift) {
+player.speed = 4 }
+else {
+player.speed = 2
 
-drawPlayer(center.X, center.Y);
-//circle(center.X, center.Y, 10, "blue")
+}
+
+//gör så att när man går diagonalt så flyttar man inte like snabbt eftersom det blir snabbare
+if (move.X !== 0 && move.Y !== 0) {
+   move.X *= 0.707;
+   move.Y *= 0.707;
+}
+
+//gör att spelarens kordinter updateras med keyboard rörelsen och move variablen
+player.x += move.X * player.speed;
+player.y += move.Y * player.speed;
+
+//Dx = Direction X mätter mussens postiiotin från mitten 
+var dx = mouse.x - center.X;  
+//DY = Direction Y Mätter mussens postion från mitten
+var dy = mouse.y - center.Y;
+var angle;
+
+if (dx > 0) {
+  angle = atan(dy / dx) * 180 / pi;
+} else if (dx < 0) {
+  angle = atan(dy / dx) * 180 / pi + 180;
+} else if (dy > 0) {
+  angle = 90;
+} else if (dy < 0) {
+  angle = -90;
+} else {
+  angle = 0;
+}
+
+save();
+translate(center.X, center.Y);
+rotate(angle - 90);
+drawPlayer(0, 0);
+restore();
+
+for (var i = 0; i < trees.length; i++) {
+  var tree = trees[i];
+  drawTree(tree.x, tree.y, tree.size);
+}
+
+//Text för testeing 
+text(20,30, 20, "Position:" + Math.floor(player.x) + "," + Math.floor(player.y), "black")
+text(20,60, 20, "Direction X: " + dx, "black")
+text(20,90, 20, "Direction y: " + dy, "black")
+text(20,120, 20, "Tree Amount: " + TreeAmount, "black")
+text(20,150, 20, "Width: " + totalWidth + "," + "Height: " + totalHeight, "black")
+text(20,180, 20, "speed: " + player.speed, "black")
+
 
 
 
